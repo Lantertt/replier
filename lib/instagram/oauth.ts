@@ -67,13 +67,22 @@ export async function fetchInstagramProfile(accessToken: string): Promise<{ id: 
   });
 
   const pagesResponse = await fetch(`https://graph.facebook.com/${META_OAUTH_VERSION}/me/accounts?${pagesParams.toString()}`);
+  const shouldDebug = process.env.DEBUG_INSTAGRAM_CALLBACK_PAYLOAD === 'true' || process.env.NODE_ENV !== 'production';
+  const pagesRaw = await pagesResponse.text();
+  if (shouldDebug) {
+    console.info('[instagram-oauth] me/accounts status', pagesResponse.status);
+    console.info('[instagram-oauth] me/accounts raw', pagesRaw);
+  }
+
   if (!pagesResponse.ok) {
     throw new Error('Failed to load Facebook pages');
   }
 
-  const pagesPayload = (await pagesResponse.json()) as FacebookPagesResponse;
-  if (process.env.DEBUG_INSTAGRAM_CALLBACK_PAYLOAD === 'true' || process.env.NODE_ENV !== 'production') {
-    console.info('[instagram-oauth] me/accounts payload', pagesPayload);
+  let pagesPayload: FacebookPagesResponse;
+  try {
+    pagesPayload = JSON.parse(pagesRaw) as FacebookPagesResponse;
+  } catch {
+    throw new Error('Failed to parse Facebook pages payload');
   }
 
   const linkedPage = (pagesPayload.data ?? []).find(

@@ -10,7 +10,9 @@ import { parseSignedOAuthState } from '@/lib/oauth-state';
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   if (shouldLogInstagramCallbackPayload(process.env)) {
-    console.info('[instagram-callback] query payload', buildInstagramCallbackPayload(requestUrl.searchParams));
+    const queryPayload = buildInstagramCallbackPayload(requestUrl.searchParams);
+    console.info('[instagram-callback] request url', request.url);
+    console.info('[instagram-callback] query payload raw', JSON.stringify(queryPayload, null, 2));
   }
 
   const code = requestUrl.searchParams.get('code');

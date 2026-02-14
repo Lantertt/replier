@@ -155,11 +155,10 @@ describe('instagram oauth client', () => {
 
     await fetchInstagramProfile('ig-token');
 
+    expect(consoleSpy).toHaveBeenCalledWith('[instagram-oauth] me/accounts status', 200);
     expect(consoleSpy).toHaveBeenCalledWith(
-      '[instagram-oauth] me/accounts payload',
-      expect.objectContaining({
-        data: expect.any(Array),
-      }),
+      '[instagram-oauth] me/accounts raw',
+      expect.stringContaining('"connected_instagram_account"'),
     );
   });
 });
