@@ -12,6 +12,19 @@ interface AccountPayload {
 }
 
 export default function AccountPage() {
+  const metaAppId = process.env.NEXT_PUBLIC_META_APP_ID || '';
+  const facebookSdkInitScript = `
+    window.fbAsyncInit = function() {
+      FB.init({
+        appId: ${JSON.stringify(metaAppId)},
+        cookie: true,
+        xfbml: true,
+        version: 'v23.0'
+      });
+      FB.AppEvents.logPageView();
+    };
+  `;
+
   const [account, setAccount] = useState<AccountPayload['account']>(null);
   const [statusMessage, setStatusMessage] = useState('');
 
@@ -48,6 +61,19 @@ export default function AccountPage() {
 
   return (
     <div className="space-y-6">
+      {metaAppId ? (
+        <>
+          <script id="facebook-jssdk-init" dangerouslySetInnerHTML={{ __html: facebookSdkInitScript }} />
+          <script
+            id="facebook-jssdk"
+            async
+            defer
+            crossOrigin="anonymous"
+            src="https://connect.facebook.net/en_US/sdk.js"
+          />
+        </>
+      ) : null}
+
       <div className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[hsl(var(--muted-foreground))]">Account</p>
         <h2 className="ink-heading text-3xl">계정 연결</h2>

@@ -19,6 +19,7 @@ Copy `.env.example` into `.env.local` and fill:
 - `CLERK_SECRET_KEY`
 - `DATABASE_URL`
 - `OPENAI_API_KEY`
+- `NEXT_PUBLIC_META_APP_ID` (same value as `META_APP_ID`)
 - `META_APP_ID`
 - `META_APP_SECRET`
 - `META_REDIRECT_URI`
