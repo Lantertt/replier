@@ -1,13 +1,24 @@
 import React from 'react';
 import { Sparkles } from 'lucide-react';
 
+import DashboardUserMenu from '@/components/dashboard/user-menu';
 import { Badge } from '@/components/ui/badge';
 
-export default function DashboardHeader() {
+interface DashboardHeaderProps {
+  showUserMenu?: boolean;
+}
+
+export default function DashboardHeader({ showUserMenu = false }: DashboardHeaderProps) {
   return (
     <header className="glass-panel relative overflow-hidden px-6 py-7">
       <div className="absolute -right-10 -top-12 h-32 w-32 rounded-full bg-[hsl(var(--accent))/0.22] blur-2xl" />
       <div className="absolute -left-8 bottom-0 h-24 w-24 rounded-full bg-cyan-300/20 blur-2xl" />
+      {showUserMenu ? (
+        <div className="absolute right-5 top-5 z-20">
+          <span className="sr-only">프로필 메뉴</span>
+          <DashboardUserMenu />
+        </div>
+      ) : null}
       <div className="relative flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[hsl(var(--muted-foreground))]">K-Beauty Ops Console</p>
