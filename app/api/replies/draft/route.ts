@@ -1,5 +1,5 @@
 import { auth } from '@clerk/nextjs/server';
-import { and, desc, eq } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 
 import { generateDraft } from '@/lib/ai/draft';
