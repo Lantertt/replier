@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { normalizeInstagramUsernames } from '@/lib/instagram/username';
 
 interface PromptTemplateItem {
   id: string;
@@ -18,6 +19,7 @@ interface PromptTemplateItem {
 interface PromptAssignmentItem {
   id: string;
   targetIgUserId: string;
+  targetUsername?: string;
   promptName: string;
   productName: string;
 }
@@ -31,13 +33,13 @@ const initialGenerateForm = {
 };
 
 const initialAssignmentForm = {
-  targetIgUserIdsText: '',
+  targetUsernamesText: '',
   promptTemplateId: '',
-  lookupIgUserId: '',
+  lookupUsername: '',
 };
 
-function parseIgUserIds(input: string): string[] {
-  return Array.from(new Set(input.split(/[\n,]/g).map((value) => value.trim()).filter(Boolean)));
+function parseUsernames(input: string): string[] {
+  return normalizeInstagramUsernames(input.split(/[\n,]/g));
 }
 
 export default function PromptManagement() {
@@ -58,13 +60,14 @@ export default function PromptManagement() {
     setPrompts(data.prompts);
   }
 
-  async function loadAssignments(igUserId: string) {
-    if (!igUserId) {
+  async function loadAssignments(username: string) {
+    const normalizedUsername = parseUsernames(username)[0];
+    if (!normalizedUsername) {
       setAssignments([]);
       return;
     }
 
-    const response = await fetch(`/api/admin/prompt-assignments?igUserId=${encodeURIComponent(igUserId)}`);
+    const response = await fetch(`/api/admin/prompt-assignments?username=${encodeURIComponent(normalizedUsername)}`);
     if (!response.ok) {
       throw new Error('할당 목록 조회에 실패했습니다.');
     }
@@ -111,9 +114,9 @@ export default function PromptManagement() {
     setAssignmentMessage('');
 
     try {
-      const targetIgUserIds = parseIgUserIds(assignmentForm.targetIgUserIdsText);
-      if (targetIgUserIds.length === 0) {
-        throw new Error('허용할 Instagram User ID를 1개 이상 입력해 주세요.');
+      const targetUsernames = parseUsernames(assignmentForm.targetUsernamesText);
+      if (targetUsernames.length === 0) {
+        throw new Error('허용할 Instagram username을 1개 이상 입력해 주세요.');
       }
 
       const response = await fetch('/api/admin/prompt-assignments', {
@@ -122,7 +125,7 @@ export default function PromptManagement() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          targetIgUserIds,
+          targetUsernames,
           promptTemplateId: assignmentForm.promptTemplateId,
         }),
       });
@@ -131,13 +134,13 @@ export default function PromptManagement() {
       }
 
       const data = (await response.json()) as { assignedCount?: number };
-      const lookupTarget = assignmentForm.lookupIgUserId || targetIgUserIds[0];
+      const lookupTarget = parseUsernames(assignmentForm.lookupUsername)[0] || targetUsernames[0];
       await loadAssignments(lookupTarget);
       setAssignmentForm((prev) => ({
         ...prev,
-        lookupIgUserId: lookupTarget,
+        lookupUsername: lookupTarget,
       }));
-      setAssignmentMessage(`${data.assignedCount ?? targetIgUserIds.length}개 IG 계정에 프롬프트 권한을 부여했습니다.`);
+      setAssignmentMessage(`${data.assignedCount ?? targetUsernames.length}개 IG 계정에 프롬프트 권한을 부여했습니다.`);
     } catch (error) {
       setAssignmentMessage(error instanceof Error ? error.message : '오류가 발생했습니다.');
     } finally {
@@ -255,21 +258,22 @@ export default function PromptManagement() {
                 </select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="lookupIgUserId">권한 조회용 Instagram User ID</Label>
+                <Label htmlFor="lookupUsername">권한 조회용 Instagram username</Label>
                 <Input
-                  id="lookupIgUserId"
-                  value={assignmentForm.lookupIgUserId}
-                  onChange={(event) => setAssignmentForm((prev) => ({ ...prev, lookupIgUserId: event.target.value }))}
+                  id="lookupUsername"
+                  value={assignmentForm.lookupUsername}
+                  onChange={(event) => setAssignmentForm((prev) => ({ ...prev, lookupUsername: event.target.value }))}
+                  placeholder="@creator_name"
                 />
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="targetIgUserIdsText">허용할 Instagram User ID 목록</Label>
+              <Label htmlFor="targetUsernamesText">허용할 Instagram username 목록</Label>
               <Textarea
-                id="targetIgUserIdsText"
-                value={assignmentForm.targetIgUserIdsText}
-                onChange={(event) => setAssignmentForm((prev) => ({ ...prev, targetIgUserIdsText: event.target.value }))}
-                placeholder="한 줄에 하나 또는 쉼표로 여러 개 입력"
+                id="targetUsernamesText"
+                value={assignmentForm.targetUsernamesText}
+                onChange={(event) => setAssignmentForm((prev) => ({ ...prev, targetUsernamesText: event.target.value }))}
+                placeholder="@creator_one, @creator_two"
                 required
               />
             </div>
@@ -280,9 +284,9 @@ export default function PromptManagement() {
               <Button
                 type="button"
                 variant="outline"
-                disabled={!assignmentForm.lookupIgUserId}
+                disabled={!assignmentForm.lookupUsername}
                 onClick={() => {
-                  void loadAssignments(assignmentForm.lookupIgUserId).catch(() => {
+                  void loadAssignments(assignmentForm.lookupUsername).catch(() => {
                     setAssignmentMessage('할당 목록 조회에 실패했습니다.');
                   });
                 }}
@@ -303,7 +307,7 @@ export default function PromptManagement() {
                   <li key={assignment.id} className="rounded-xl border border-[hsl(var(--border))/0.8] bg-[hsl(var(--secondary))/0.4] p-3">
                     <p className="text-sm font-semibold">{assignment.promptName}</p>
                     <p className="text-xs text-[hsl(var(--muted-foreground))]">
-                      사용자: {assignment.targetIgUserId} · 제품: {assignment.productName}
+                      사용자: @{assignment.targetUsername ?? 'unknown'} ({assignment.targetIgUserId}) · 제품: {assignment.productName}
                     </p>
                   </li>
                 ))}

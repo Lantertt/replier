@@ -5,16 +5,23 @@ export const users = pgTable('users', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
-export const instagramAccounts = pgTable('instagram_accounts', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  clerkUserId: text('clerk_user_id').notNull(),
-  igUserId: text('ig_user_id').notNull().unique(),
-  username: text('username').notNull(),
-  accessTokenEncrypted: text('access_token_encrypted').notNull(),
-  tokenExpiresAt: timestamp('token_expires_at').notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-});
+export const instagramAccounts = pgTable(
+  'instagram_accounts',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    clerkUserId: text('clerk_user_id').notNull(),
+    igUserId: text('ig_user_id').notNull().unique(),
+    username: text('username').notNull(),
+    accessTokenEncrypted: text('access_token_encrypted').notNull(),
+    tokenExpiresAt: timestamp('token_expires_at').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => [
+    index('idx_instagram_accounts_clerk_user_id').on(table.clerkUserId),
+    index('idx_instagram_accounts_username').on(table.username),
+  ],
+);
 
 export const adminAdContexts = pgTable(
   'admin_ad_contexts',

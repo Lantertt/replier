@@ -1,0 +1,2 @@
+CREATE INDEX "idx_instagram_accounts_clerk_user_id" ON "instagram_accounts" USING btree ("clerk_user_id");--> statement-breakpoint
+CREATE INDEX "idx_instagram_accounts_username" ON "instagram_accounts" USING btree ("username");
