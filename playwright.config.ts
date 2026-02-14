@@ -14,8 +14,8 @@ export default defineConfig({
     reuseExistingServer: false,
     timeout: 120_000,
     env: {
-      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: 'pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
-      CLERK_SECRET_KEY: 'sk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: 'pk_test_ZXhhbXBsZS5jbGVyay5hY2NvdW50cy5kZXYk',
+      CLERK_SECRET_KEY: 'sk_test_example_test_key_for_e2e_only',
       SKIP_CLERK: 'true',
       DATABASE_URL: 'https://example.com/db',
       OPENAI_API_KEY: 'test-openai-key',

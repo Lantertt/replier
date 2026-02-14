@@ -1,14 +1,23 @@
 import { clerkMiddleware } from '@clerk/nextjs/server';
-import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
-export default async function middleware(request: NextRequest) {
-  if (process.env.SKIP_CLERK === 'true') {
+import { isProtectedPath } from '@/lib/protected-routes';
+
+const shouldSkipClerk = process.env.SKIP_CLERK === 'true';
+
+const middleware = shouldSkipClerk
+  ? () => {
     return NextResponse.next();
   }
+  : clerkMiddleware(async (auth, request) => {
+    if (isProtectedPath(request.nextUrl.pathname)) {
+      await auth.protect();
+    }
 
-  return clerkMiddleware()(request, {} as never);
-}
+    return NextResponse.next();
+  });
+
+export default middleware;
 
 export const config = {
   matcher: ['/((?!_next|.*\\..*).*)'],

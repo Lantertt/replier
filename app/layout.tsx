@@ -21,10 +21,16 @@ export const metadata: Metadata = {
   description: 'Instagram comment reply assistant MVP',
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  const shouldSkipClerk = process.env.SKIP_CLERK === 'true';
+  const clerk = shouldSkipClerk ? null : await import('@clerk/nextjs');
+  const ClerkProvider = clerk?.ClerkProvider;
+
   return (
     <html lang="ko">
-      <body className={`${displayFont.variable} ${bodyFont.variable}`}>{children}</body>
+      <body className={`${displayFont.variable} ${bodyFont.variable}`}>
+        {shouldSkipClerk || !ClerkProvider ? children : <ClerkProvider>{children}</ClerkProvider>}
+      </body>
     </html>
   );
 }
