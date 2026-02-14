@@ -9,7 +9,7 @@ const quickLinks = [
   {
     href: '/dashboard/account',
     title: '계정 연결',
-    description: 'Meta OAuth 승인 및 계정 연결 상태 확인',
+    description: 'Instagram Login 승인 및 계정 연결 상태 확인',
     icon: Link2,
   },
   {

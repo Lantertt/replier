@@ -10,10 +10,9 @@ describe('meta oauth url', () => {
   it('includes state and required scope', () => {
     const url = buildMetaOAuthUrl('state-123');
 
-    expect(url).toContain('https://www.facebook.com/v23.0/dialog/oauth');
+    expect(url).toContain('https://www.instagram.com/oauth/authorize');
     expect(url).toContain('state=state-123');
-    expect(url).toContain('instagram_manage_comments');
-    expect(url).toContain('pages_show_list');
-    expect(url).toContain('pages_read_engagement');
+    expect(url).toContain('instagram_business_basic');
+    expect(url).toContain('instagram_business_manage_comments');
   });
 });

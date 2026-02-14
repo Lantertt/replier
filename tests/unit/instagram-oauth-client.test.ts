@@ -16,7 +16,7 @@ describe('instagram oauth client', () => {
     vi.unstubAllEnvs();
   });
 
-  it('exchanges auth code via Meta graph oauth endpoint', async () => {
+  it('exchanges auth code via instagram oauth endpoint', async () => {
     const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ access_token: 'ig-token', expires_in: 3600 }), {
         status: 200,
@@ -30,44 +30,27 @@ describe('instagram oauth client', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [requestUrl, requestInit] = fetchMock.mock.calls[0];
-    expect(String(requestUrl)).toContain('https://graph.facebook.com/v23.0/oauth/access_token');
-    expect(String(requestUrl)).toContain('client_id=meta-app-id');
-    expect(String(requestUrl)).toContain('client_secret=meta-app-secret');
-    expect(String(requestUrl)).toContain('code=code-123');
-    expect(requestInit).toBeUndefined();
+    expect(String(requestUrl)).toBe('https://api.instagram.com/oauth/access_token');
+    expect(requestInit?.method).toBe('POST');
+    expect(requestInit?.headers).toEqual({
+      'Content-Type': 'application/x-www-form-urlencoded',
+    });
+    expect(String(requestInit?.body)).toContain('client_id=meta-app-id');
+    expect(String(requestInit?.body)).toContain('client_secret=meta-app-secret');
+    expect(String(requestInit?.body)).toContain('redirect_uri=https%3A%2F%2Fexample.com%2Fapi%2Finstagram%2Fcallback');
+    expect(String(requestInit?.body)).toContain('grant_type=authorization_code');
+    expect(String(requestInit?.body)).toContain('code=code-123');
   });
 
-  it('uses id field in profile response', async () => {
-    const fetchMock = vi
-      .spyOn(global, 'fetch')
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            data: [
-              {
-                id: 'page-1',
-                instagram_business_account: {
-                  id: '1789',
-                },
-              },
-            ],
-          }),
-          {
-            status: 200,
-            headers: {
-              'Content-Type': 'application/json',
-            },
-          },
-        ),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ id: '1789', username: 'creator' }), {
-          status: 200,
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }),
-      );
+  it('uses user_id field in profile response', async () => {
+    const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ user_id: '1789', username: 'creator' }), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
 
     const profile = await fetchInstagramProfile('ig-token');
 
@@ -75,123 +58,57 @@ describe('instagram oauth client', () => {
       id: '1789',
       username: 'creator',
     });
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(String(fetchMock.mock.calls[0][0])).toContain('https://graph.facebook.com/v23.0/me/accounts');
-    expect(String(fetchMock.mock.calls[1][0])).toContain('https://graph.facebook.com/v23.0/1789?');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(String(fetchMock.mock.calls[0][0])).toContain('https://graph.instagram.com/v23.0/me?');
   });
 
-  it('throws when no instagram business account is linked', async () => {
+  it('falls back to id field in profile response', async () => {
     vi.spyOn(global, 'fetch').mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          data: [{ id: 'page-1' }],
-        }),
-        {
-          status: 200,
-          headers: {
-            'Content-Type': 'application/json',
-          },
+      new Response(JSON.stringify({ id: '1799', username: 'creator2' }), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
         },
-      ),
-    );
-
-    await expect(fetchInstagramProfile('ig-token')).rejects.toThrow(
-      'No Instagram professional account linked',
-    );
-  });
-
-  it('accepts connected_instagram_account payload', async () => {
-    const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          data: [
-            {
-              id: 'page-1',
-              connected_instagram_account: {
-                id: '1799',
-                username: 'creator_linked',
-              },
-            },
-          ],
-        }),
-        {
-          status: 200,
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        },
-      ),
+      }),
     );
 
     const profile = await fetchInstagramProfile('ig-token');
 
     expect(profile).toEqual({
       id: '1799',
-      username: 'creator_linked',
+      username: 'creator2',
     });
-    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it('logs me/accounts payload when debug flag is enabled', async () => {
+  it('throws when profile payload has no id', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ username: 'creator' }), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+
+    await expect(fetchInstagramProfile('ig-token')).rejects.toThrow('Instagram profile missing id');
+  });
+
+  it('logs me payload when debug flag is enabled', async () => {
     process.env.DEBUG_INSTAGRAM_CALLBACK_PAYLOAD = 'true';
     const consoleSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
 
-    const fetchMock = vi
-      .spyOn(global, 'fetch')
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            data: [
-              {
-                permission: 'pages_show_list',
-                status: 'granted',
-              },
-            ],
-          }),
-          {
-            status: 200,
-            headers: {
-              'Content-Type': 'application/json',
-            },
-          },
-        ),
-      )
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            data: [
-              {
-                id: 'page-1',
-                connected_instagram_account: {
-                  id: '1799',
-                  username: 'creator_linked',
-                },
-              },
-            ],
-          }),
-          {
-            status: 200,
-            headers: {
-              'Content-Type': 'application/json',
-            },
-          },
-        ),
-      );
+    vi.spyOn(global, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ user_id: '1789', username: 'creator' }), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
 
     await fetchInstagramProfile('ig-token');
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(String(fetchMock.mock.calls[0][0])).toContain('https://graph.facebook.com/v23.0/me/permissions');
-    expect(String(fetchMock.mock.calls[1][0])).toContain('https://graph.facebook.com/v23.0/me/accounts');
-    expect(consoleSpy).toHaveBeenCalledWith('[instagram-oauth] me/permissions status', 200);
-    expect(consoleSpy).toHaveBeenCalledWith(
-      '[instagram-oauth] me/permissions raw',
-      expect.stringContaining('"permission":"pages_show_list"'),
-    );
-    expect(consoleSpy).toHaveBeenCalledWith('[instagram-oauth] me/accounts status', 200);
-    expect(consoleSpy).toHaveBeenCalledWith(
-      '[instagram-oauth] me/accounts raw',
-      expect.stringContaining('"connected_instagram_account"'),
-    );
+    expect(consoleSpy).toHaveBeenCalledWith('[instagram-oauth] me status', 200);
+    expect(consoleSpy).toHaveBeenCalledWith('[instagram-oauth] me raw', expect.stringContaining('"user_id":"1789"'));
   });
 });

@@ -6,22 +6,9 @@ interface OAuthTokenResponse {
 }
 
 interface InstagramProfileResponse {
-  id: string;
+  user_id?: string;
+  id?: string;
   username?: string;
-}
-
-interface FacebookPagesResponse {
-  data?: Array<{
-    id: string;
-    instagram_business_account?: {
-      id: string;
-      username?: string;
-    };
-    connected_instagram_account?: {
-      id: string;
-      username?: string;
-    };
-  }>;
 }
 
 export function buildMetaOAuthUrl(state: string): string {
@@ -29,22 +16,31 @@ export function buildMetaOAuthUrl(state: string): string {
     client_id: process.env.META_APP_ID || '',
     redirect_uri: process.env.META_REDIRECT_URI || '',
     response_type: 'code',
-    scope: 'instagram_basic,instagram_manage_comments,pages_show_list,pages_read_engagement',
+    scope: 'instagram_business_basic,instagram_business_manage_comments',
+    enable_fb_login: '0',
+    force_authentication: '1',
     state,
   });
 
-  return `https://www.facebook.com/${META_OAUTH_VERSION}/dialog/oauth?${params.toString()}`;
+  return `https://www.instagram.com/oauth/authorize?${params.toString()}`;
 }
 
 export async function exchangeCodeForAccessToken(code: string): Promise<{ accessToken: string; expiresIn: number }> {
-  const params = new URLSearchParams({
+  const body = new URLSearchParams({
     client_id: process.env.META_APP_ID || '',
     client_secret: process.env.META_APP_SECRET || '',
     redirect_uri: process.env.META_REDIRECT_URI || '',
+    grant_type: 'authorization_code',
     code,
   });
 
-  const response = await fetch(`https://graph.facebook.com/${META_OAUTH_VERSION}/oauth/access_token?${params.toString()}`);
+  const response = await fetch('https://api.instagram.com/oauth/access_token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body,
+  });
   if (!response.ok) {
     throw new Error('Failed to exchange OAuth code for access token');
   }
@@ -62,80 +58,36 @@ export async function exchangeCodeForAccessToken(code: string): Promise<{ access
 
 export async function fetchInstagramProfile(accessToken: string): Promise<{ id: string; username: string }> {
   const shouldDebug = process.env.DEBUG_INSTAGRAM_CALLBACK_PAYLOAD === 'true' || process.env.NODE_ENV !== 'production';
-
-  if (shouldDebug) {
-    try {
-      const permissionsParams = new URLSearchParams({
-        access_token: accessToken,
-      });
-      const permissionsResponse = await fetch(
-        `https://graph.facebook.com/${META_OAUTH_VERSION}/me/permissions?${permissionsParams.toString()}`,
-      );
-      const permissionsRaw = await permissionsResponse.text();
-      console.info('[instagram-oauth] me/permissions status', permissionsResponse.status);
-      console.info('[instagram-oauth] me/permissions raw', permissionsRaw);
-    } catch (error) {
-      console.info('[instagram-oauth] me/permissions debug error', String(error));
-    }
-  }
-
-  const pagesParams = new URLSearchParams({
-    fields: 'id,name,tasks,instagram_business_account{id,username},connected_instagram_account{id,username}',
-    access_token: accessToken,
-  });
-
-  const pagesResponse = await fetch(`https://graph.facebook.com/${META_OAUTH_VERSION}/me/accounts?${pagesParams.toString()}`);
-  const pagesRaw = await pagesResponse.text();
-  if (shouldDebug) {
-    console.info('[instagram-oauth] me/accounts status', pagesResponse.status);
-    console.info('[instagram-oauth] me/accounts raw', pagesRaw);
-  }
-
-  if (!pagesResponse.ok) {
-    throw new Error('Failed to load Facebook pages');
-  }
-
-  let pagesPayload: FacebookPagesResponse;
-  try {
-    pagesPayload = JSON.parse(pagesRaw) as FacebookPagesResponse;
-  } catch {
-    throw new Error('Failed to parse Facebook pages payload');
-  }
-
-  const linkedPage = (pagesPayload.data ?? []).find(
-    (page) => page.connected_instagram_account?.id || page.instagram_business_account?.id,
-  );
-  const linkedAccount = linkedPage?.connected_instagram_account ?? linkedPage?.instagram_business_account;
-  if (!linkedAccount?.id) {
-    throw new Error('No Instagram professional account linked');
-  }
-
-  if (linkedAccount.username) {
-    return {
-      id: linkedAccount.id,
-      username: linkedAccount.username,
-    };
-  }
-
   const profileParams = new URLSearchParams({
-    fields: 'id,username',
+    fields: 'user_id,id,username',
     access_token: accessToken,
   });
 
-  const profileResponse = await fetch(
-    `https://graph.facebook.com/${META_OAUTH_VERSION}/${linkedAccount.id}?${profileParams.toString()}`,
-  );
+  const profileResponse = await fetch(`https://graph.instagram.com/${META_OAUTH_VERSION}/me?${profileParams.toString()}`);
+  const profileRaw = await profileResponse.text();
+  if (shouldDebug) {
+    console.info('[instagram-oauth] me status', profileResponse.status);
+    console.info('[instagram-oauth] me raw', profileRaw);
+  }
+
   if (!profileResponse.ok) {
     throw new Error('Failed to load Instagram profile');
   }
 
-  const profilePayload = (await profileResponse.json()) as InstagramProfileResponse;
-  if (!profilePayload.id) {
+  let profilePayload: InstagramProfileResponse;
+  try {
+    profilePayload = JSON.parse(profileRaw) as InstagramProfileResponse;
+  } catch {
+    throw new Error('Failed to parse Instagram profile payload');
+  }
+
+  const igUserId = profilePayload.user_id ?? profilePayload.id;
+  if (!igUserId) {
     throw new Error('Instagram profile missing id');
   }
 
   return {
-    id: profilePayload.id,
+    id: igUserId,
     username: profilePayload.username ?? 'unknown',
   };
 }
