@@ -10,6 +10,16 @@ interface InstagramProfileResponse {
   username?: string;
 }
 
+interface FacebookPagesResponse {
+  data?: Array<{
+    id: string;
+    instagram_business_account?: {
+      id: string;
+      username?: string;
+    };
+  }>;
+}
+
 export function buildMetaOAuthUrl(state: string): string {
   const params = new URLSearchParams({
     client_id: process.env.META_APP_ID || '',
@@ -47,23 +57,48 @@ export async function exchangeCodeForAccessToken(code: string): Promise<{ access
 }
 
 export async function fetchInstagramProfile(accessToken: string): Promise<{ id: string; username: string }> {
-  const params = new URLSearchParams({
+  const pagesParams = new URLSearchParams({
+    fields: 'id,instagram_business_account{id,username}',
+    access_token: accessToken,
+  });
+
+  const pagesResponse = await fetch(`https://graph.facebook.com/${META_OAUTH_VERSION}/me/accounts?${pagesParams.toString()}`);
+  if (!pagesResponse.ok) {
+    throw new Error('Failed to load Facebook pages');
+  }
+
+  const pagesPayload = (await pagesResponse.json()) as FacebookPagesResponse;
+  const linkedAccount = (pagesPayload.data ?? []).find((page) => page.instagram_business_account?.id)?.instagram_business_account;
+  if (!linkedAccount?.id) {
+    throw new Error('No Instagram professional account linked');
+  }
+
+  if (linkedAccount.username) {
+    return {
+      id: linkedAccount.id,
+      username: linkedAccount.username,
+    };
+  }
+
+  const profileParams = new URLSearchParams({
     fields: 'id,username',
     access_token: accessToken,
   });
 
-  const response = await fetch(`https://graph.instagram.com/me?${params.toString()}`);
-  if (!response.ok) {
+  const profileResponse = await fetch(
+    `https://graph.facebook.com/${META_OAUTH_VERSION}/${linkedAccount.id}?${profileParams.toString()}`,
+  );
+  if (!profileResponse.ok) {
     throw new Error('Failed to load Instagram profile');
   }
 
-  const data = (await response.json()) as InstagramProfileResponse;
-  if (!data.id) {
+  const profilePayload = (await profileResponse.json()) as InstagramProfileResponse;
+  if (!profilePayload.id) {
     throw new Error('Instagram profile missing id');
   }
 
   return {
-    id: data.id,
-    username: data.username ?? 'unknown',
+    id: profilePayload.id,
+    username: profilePayload.username ?? 'unknown',
   };
 }

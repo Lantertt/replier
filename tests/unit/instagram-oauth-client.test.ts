@@ -32,14 +32,36 @@ describe('instagram oauth client', () => {
   });
 
   it('uses id field in profile response', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ id: '1789', username: 'creator' }), {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
+    const fetchMock = vi
+      .spyOn(global, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: [
+              {
+                id: 'page-1',
+                instagram_business_account: {
+                  id: '1789',
+                },
+              },
+            ],
+          }),
+          {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ id: '1789', username: 'creator' }), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }),
+      );
 
     const profile = await fetchInstagramProfile('ig-token');
 
@@ -47,5 +69,28 @@ describe('instagram oauth client', () => {
       id: '1789',
       username: 'creator',
     });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(String(fetchMock.mock.calls[0][0])).toContain('https://graph.facebook.com/v23.0/me/accounts');
+    expect(String(fetchMock.mock.calls[1][0])).toContain('https://graph.facebook.com/v23.0/1789?');
+  });
+
+  it('throws when no instagram business account is linked', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: [{ id: 'page-1' }],
+        }),
+        {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        },
+      ),
+    );
+
+    await expect(fetchInstagramProfile('ig-token')).rejects.toThrow(
+      'No Instagram professional account linked',
+    );
   });
 });

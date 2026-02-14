@@ -26,7 +26,7 @@ export async function GET() {
   }
 
   const accessToken = decryptToken(account.accessTokenEncrypted, encryptionKey);
-  const posts = await listPosts(accessToken);
+  const posts = await listPosts(account.igUserId, accessToken);
 
   return NextResponse.json({ posts });
 }

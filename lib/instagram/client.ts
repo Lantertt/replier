@@ -28,13 +28,13 @@ export function normalizeComment(input: { id: string; text: string; username: st
   };
 }
 
-export async function listPosts(accessToken: string): Promise<InstagramPost[]> {
+export async function listPosts(igUserId: string, accessToken: string): Promise<InstagramPost[]> {
   const params = new URLSearchParams({
     fields: 'id,caption,media_url,permalink,timestamp',
     access_token: accessToken,
   });
 
-  const response = await fetch(`https://graph.instagram.com/me/media?${params.toString()}`);
+  const response = await fetch(`https://graph.facebook.com/${GRAPH_VERSION}/${igUserId}/media?${params.toString()}`);
   assertOk(response, 'Failed to fetch Instagram posts');
 
   const data = (await response.json()) as {
