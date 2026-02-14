@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 38 30% 94%;
+  --foreground: 18 17% 13%;
+  --card: 37 32% 97%;
+  --card-foreground: 18 17% 13%;
+  --popover: 37 32% 97%;
+  --popover-foreground: 18 17% 13%;
+  --primary: 18 17% 13%;
+  --primary-foreground: 39 49% 95%;
+  --secondary: 31 27% 89%;
+  --secondary-foreground: 18 17% 18%;
+  --muted: 29 24% 86%;
+  --muted-foreground: 18 10% 38%;
+  --accent: 14 88% 57%;
+  --accent-foreground: 35 60% 98%;
+  --border: 26 22% 78%;
+  --input: 26 22% 78%;
+  --ring: 14 88% 57%;
+}
+
+* {
+  @apply border-border;
+}
+
+body {
+  @apply bg-background text-foreground font-body antialiased;
+  min-height: 100vh;
+  background-image:
+    radial-gradient(1000px 500px at 15% -15%, rgba(236, 117, 74, 0.22), transparent 55%),
+    radial-gradient(900px 450px at 85% 0%, rgba(82, 147, 180, 0.16), transparent 58%),
+    linear-gradient(125deg, rgba(255, 255, 255, 0.45), rgba(248, 239, 226, 0.18));
+}
+
+body::before {
+  content: '';
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  background-image: radial-gradient(rgba(24, 19, 15, 0.08) 0.6px, transparent 0.6px);
+  background-size: 3px 3px;
+  opacity: 0.16;
+  mix-blend-mode: multiply;
+  z-index: -1;
+}
+
+::selection {
+  background: rgba(236, 117, 74, 0.25);
+}
+
+@layer utilities {
+  .glass-panel {
+    @apply rounded-3xl border border-white/30 bg-white/40 shadow-[0_20px_60px_-40px_rgba(29,20,16,0.7)] backdrop-blur-md;
+  }
+
+  .ink-heading {
+    @apply font-display tracking-tight;
+  }
+}

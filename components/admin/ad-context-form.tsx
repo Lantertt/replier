@@ -2,6 +2,12 @@
 
 import React, { useState } from 'react';
 
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+
 interface FormState {
   targetIgUserId: string;
   productName: string;
@@ -76,55 +82,101 @@ export default function AdContextForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit}>
-      <label>
-        Instagram User ID
-        <input
-          value={form.targetIgUserId}
-          onChange={(event) => onFieldChange('targetIgUserId', event.target.value)}
-          required
-        />
-      </label>
-      <label>
-        Product Name
-        <input value={form.productName} onChange={(event) => onFieldChange('productName', event.target.value)} required />
-      </label>
-      <label>
-        USP
-        <textarea value={form.uspText} onChange={(event) => onFieldChange('uspText', event.target.value)} required />
-      </label>
-      <label>
-        Sales Link
-        <input value={form.salesLink} onChange={(event) => onFieldChange('salesLink', event.target.value)} required />
-      </label>
-      <label>
-        Discount Code
-        <input
-          value={form.discountCode}
-          onChange={(event) => onFieldChange('discountCode', event.target.value)}
-          required
-        />
-      </label>
-      <label>
-        Required Keywords (comma separated)
-        <input
-          value={form.requiredKeywords}
-          onChange={(event) => onFieldChange('requiredKeywords', event.target.value)}
-        />
-      </label>
-      <label>
-        Banned Keywords (comma separated)
-        <input value={form.bannedKeywords} onChange={(event) => onFieldChange('bannedKeywords', event.target.value)} />
-      </label>
-      <label>
-        Tone Notes
-        <textarea value={form.toneNotes} onChange={(event) => onFieldChange('toneNotes', event.target.value)} required />
-      </label>
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-2xl">관리자 컨텍스트 주입</CardTitle>
+        <CardDescription>사용자 Instagram ID별로 광고 정보와 금지어를 설정해 답글 품질을 고정합니다.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form className="space-y-6" onSubmit={handleSubmit}>
+          <div className="grid gap-5 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="targetIgUserId">Instagram User ID</Label>
+              <Input
+                id="targetIgUserId"
+                value={form.targetIgUserId}
+                onChange={(event) => onFieldChange('targetIgUserId', event.target.value)}
+                required
+              />
+            </div>
 
-      <button type="submit" disabled={loading}>
-        저장
-      </button>
-      <p>{message}</p>
-    </form>
+            <div className="space-y-2">
+              <Label htmlFor="productName">Product Name</Label>
+              <Input
+                id="productName"
+                value={form.productName}
+                onChange={(event) => onFieldChange('productName', event.target.value)}
+                required
+              />
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="uspText">USP</Label>
+              <Textarea
+                id="uspText"
+                value={form.uspText}
+                onChange={(event) => onFieldChange('uspText', event.target.value)}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="salesLink">Sales Link</Label>
+              <Input
+                id="salesLink"
+                value={form.salesLink}
+                onChange={(event) => onFieldChange('salesLink', event.target.value)}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="discountCode">Discount Code</Label>
+              <Input
+                id="discountCode"
+                value={form.discountCode}
+                onChange={(event) => onFieldChange('discountCode', event.target.value)}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="requiredKeywords">Required Keywords (comma separated)</Label>
+              <Input
+                id="requiredKeywords"
+                value={form.requiredKeywords}
+                onChange={(event) => onFieldChange('requiredKeywords', event.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="bannedKeywords">Banned Keywords (comma separated)</Label>
+              <Input
+                id="bannedKeywords"
+                value={form.bannedKeywords}
+                onChange={(event) => onFieldChange('bannedKeywords', event.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="toneNotes">Tone Notes</Label>
+              <Textarea
+                id="toneNotes"
+                value={form.toneNotes}
+                onChange={(event) => onFieldChange('toneNotes', event.target.value)}
+                required
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <Button type="submit" disabled={loading} className="px-6">
+              저장
+            </Button>
+            <p className="text-sm text-[hsl(var(--muted-foreground))]">{message}</p>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
   );
 }

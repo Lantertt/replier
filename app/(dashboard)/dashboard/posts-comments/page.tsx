@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 
 import CommentList, { type CommentItem } from '@/components/posts-comments/comment-list';
 import PostList, { type PostItem } from '@/components/posts-comments/post-list';
 import ReplyPanel from '@/components/posts-comments/reply-panel';
+import { Button } from '@/components/ui/button';
 
 export default function PostsCommentsPage() {
   const [posts, setPosts] = useState<PostItem[]>([]);
@@ -14,6 +15,8 @@ export default function PostsCommentsPage() {
   const [draft, setDraft] = useState('');
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
+
+  const selectedPostCaption = useMemo(() => posts.find((post) => post.id === selectedPostId)?.caption ?? '', [posts, selectedPostId]);
 
   async function loadPosts() {
     setLoading(true);
@@ -110,26 +113,43 @@ export default function PostsCommentsPage() {
   }
 
   return (
-    <div>
-      <h2>게시물 &amp; 댓글</h2>
-      <button type="button" onClick={() => void loadPosts()} disabled={loading}>
-        게시물 불러오기
-      </button>
-      <PostList posts={posts} selectedPostId={selectedPostId} onSelect={(postId) => void handleSelectPost(postId)} />
-      <CommentList
-        comments={comments}
-        selectedCommentId={selectedComment?.id ?? null}
-        onSelect={(comment) => setSelectedComment(comment)}
-      />
-      <ReplyPanel
-        selectedCommentId={selectedComment?.id ?? null}
-        draft={draft}
-        onDraftChange={setDraft}
-        onGenerateDraft={handleGenerateDraft}
-        onPublish={handlePublish}
-        loading={loading}
-        statusMessage={statusMessage}
-      />
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="space-y-1.5">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[hsl(var(--muted-foreground))]">Operations</p>
+          <h2 className="ink-heading text-3xl">게시물 &amp; 댓글</h2>
+          <p className="text-sm text-[hsl(var(--muted-foreground))]">
+            게시물 선택 → 댓글 조회 → AI Draft 생성 → Publish 순서로 실시간 대응합니다.
+          </p>
+        </div>
+        <Button type="button" onClick={() => void loadPosts()} disabled={loading} size="lg" className="rounded-full px-6">
+          게시물 불러오기
+        </Button>
+      </div>
+
+      {selectedPostId ? (
+        <p className="rounded-2xl border border-[hsl(var(--border))/0.8] bg-[hsl(var(--secondary))/0.5] px-4 py-3 text-sm text-[hsl(var(--muted-foreground))]">
+          선택된 게시물: <span className="font-semibold text-[hsl(var(--foreground))]">{selectedPostCaption || selectedPostId}</span>
+        </p>
+      ) : null}
+
+      <div className="grid gap-4 xl:grid-cols-[0.9fr_1fr_1.1fr]">
+        <PostList posts={posts} selectedPostId={selectedPostId} onSelect={(postId) => void handleSelectPost(postId)} />
+        <CommentList
+          comments={comments}
+          selectedCommentId={selectedComment?.id ?? null}
+          onSelect={(comment) => setSelectedComment(comment)}
+        />
+        <ReplyPanel
+          selectedCommentId={selectedComment?.id ?? null}
+          draft={draft}
+          onDraftChange={setDraft}
+          onGenerateDraft={handleGenerateDraft}
+          onPublish={handlePublish}
+          loading={loading}
+          statusMessage={statusMessage}
+        />
+      </div>
     </div>
   );
 }

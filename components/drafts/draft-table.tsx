@@ -2,6 +2,9 @@
 
 import React from 'react';
 
+import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+
 export interface DraftHistoryItem {
   id: string;
   igCommentId: string;
@@ -15,29 +18,51 @@ interface DraftTableProps {
   drafts: DraftHistoryItem[];
 }
 
+function statusVariant(status: string): 'default' | 'secondary' | 'outline' {
+  if (status === 'published') return 'default';
+  if (status === 'hold') return 'secondary';
+  return 'outline';
+}
+
 export default function DraftTable({ drafts }: DraftTableProps) {
   return (
-    <table>
-      <thead>
-        <tr>
-          <th>Comment ID</th>
-          <th>Intent</th>
-          <th>Status</th>
-          <th>Draft</th>
-          <th>Created At</th>
-        </tr>
-      </thead>
-      <tbody>
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Comment ID</TableHead>
+          <TableHead>Intent</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead>Draft</TableHead>
+          <TableHead>Created At</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {drafts.length === 0 ? (
+          <TableRow>
+            <TableCell className="py-10 text-center text-sm text-[hsl(var(--muted-foreground))]" colSpan={5}>
+              아직 저장된 Draft 기록이 없습니다.
+            </TableCell>
+          </TableRow>
+        ) : null}
+
         {drafts.map((draft) => (
-          <tr key={draft.id}>
-            <td>{draft.igCommentId}</td>
-            <td>{draft.intent}</td>
-            <td>{draft.status}</td>
-            <td>{draft.aiDraft}</td>
-            <td>{draft.createdAt}</td>
-          </tr>
+          <TableRow key={draft.id}>
+            <TableCell className="font-medium text-[hsl(var(--foreground))]">{draft.igCommentId}</TableCell>
+            <TableCell>
+              <Badge variant="outline" className="rounded-full px-3 py-1 text-[10px]">
+                {draft.intent}
+              </Badge>
+            </TableCell>
+            <TableCell>
+              <Badge variant={statusVariant(draft.status)} className="rounded-full px-3 py-1 text-[10px]">
+                {draft.status}
+              </Badge>
+            </TableCell>
+            <TableCell className="max-w-[360px] text-sm leading-relaxed text-[hsl(var(--foreground))/0.84]">{draft.aiDraft}</TableCell>
+            <TableCell className="text-xs text-[hsl(var(--muted-foreground))]">{draft.createdAt}</TableCell>
+          </TableRow>
         ))}
-      </tbody>
-    </table>
+      </TableBody>
+    </Table>
   );
 }
