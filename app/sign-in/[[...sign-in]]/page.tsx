@@ -1,4 +1,8 @@
-export default async function SignInPage() {
+import React from 'react';
+
+import SignInView from './sign-in-view';
+
+export default function SignInPage() {
   if (process.env.SKIP_CLERK === 'true') {
     return (
       <main className="mx-auto flex min-h-screen max-w-6xl items-center justify-center px-6 py-12">
@@ -7,12 +11,9 @@ export default async function SignInPage() {
     );
   }
 
-  const clerk = await import('@clerk/nextjs');
-  const SignIn = clerk.SignIn;
-
   return (
     <main className="mx-auto flex min-h-screen max-w-6xl items-center justify-center px-6 py-12">
-      <SignIn path="/sign-in" routing="path" signUpUrl="/sign-up" forceRedirectUrl="/dashboard" />
+      <SignInView />
     </main>
   );
 }
