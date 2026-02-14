@@ -12,7 +12,11 @@ describe('meta oauth url', () => {
 
     expect(url).toContain('https://www.instagram.com/oauth/authorize');
     expect(url).toContain('state=state-123');
+    expect(url).toContain('force_reauth=true');
     expect(url).toContain('instagram_business_basic');
+    expect(url).toContain('instagram_business_manage_messages');
     expect(url).toContain('instagram_business_manage_comments');
+    expect(url).toContain('instagram_business_content_publish');
+    expect(url).toContain('instagram_business_manage_insights');
   });
 });

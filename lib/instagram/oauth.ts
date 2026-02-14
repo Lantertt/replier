@@ -16,9 +16,9 @@ export function buildMetaOAuthUrl(state: string): string {
     client_id: process.env.META_APP_ID || '',
     redirect_uri: process.env.META_REDIRECT_URI || '',
     response_type: 'code',
-    scope: 'instagram_business_basic,instagram_business_manage_comments',
-    enable_fb_login: '0',
-    force_authentication: '1',
+    scope:
+      'instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments,instagram_business_content_publish,instagram_business_manage_insights',
+    force_reauth: 'true',
     state,
   });
 
