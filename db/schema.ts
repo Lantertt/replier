@@ -1,0 +1,64 @@
+import { index, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+
+export const users = pgTable('users', {
+  id: text('id').primaryKey(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const instagramAccounts = pgTable('instagram_accounts', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  clerkUserId: text('clerk_user_id').notNull(),
+  igUserId: text('ig_user_id').notNull().unique(),
+  username: text('username').notNull(),
+  accessTokenEncrypted: text('access_token_encrypted').notNull(),
+  tokenExpiresAt: timestamp('token_expires_at').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const adminAdContexts = pgTable(
+  'admin_ad_contexts',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    targetIgUserId: text('target_ig_user_id').notNull(),
+    productName: text('product_name').notNull(),
+    uspText: text('usp_text').notNull(),
+    salesLink: text('sales_link').notNull(),
+    discountCode: text('discount_code').notNull(),
+    requiredKeywords: jsonb('required_keywords').$type<string[]>().notNull(),
+    bannedKeywords: jsonb('banned_keywords').$type<string[]>().notNull(),
+    toneNotes: text('tone_notes').notNull(),
+    updatedByAdminClerkId: text('updated_by_admin_clerk_id').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => [index('idx_admin_context_target_ig_user_id').on(table.targetIgUserId)],
+);
+
+export const replyDrafts = pgTable(
+  'reply_drafts',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    igCommentId: text('ig_comment_id').notNull(),
+    targetIgUserId: text('target_ig_user_id').notNull(),
+    intent: text('intent').notNull(),
+    originalComment: text('original_comment').notNull(),
+    aiDraft: text('ai_draft').notNull(),
+    status: text('status').notNull(),
+    publishedReplyCommentId: text('published_reply_comment_id'),
+    errorMessage: text('error_message'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => [
+    index('idx_reply_drafts_ig_comment_id').on(table.igCommentId),
+    index('idx_reply_drafts_target_ig_user_id').on(table.targetIgUserId),
+  ],
+);
+
+export const oauthStates = pgTable('oauth_states', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  state: text('state').notNull().unique(),
+  clerkUserId: text('clerk_user_id').notNull(),
+  expiresAt: timestamp('expires_at').notNull(),
+});
