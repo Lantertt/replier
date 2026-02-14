@@ -4,9 +4,17 @@ const IV_LENGTH = 16;
 const AUTH_TAG_LENGTH = 16;
 
 function toKeyBuffer(key: string): Buffer {
-  const keyBuffer = Buffer.from(key, 'utf8');
+  const normalizedKey = key.trim();
+
+  if (/^[0-9a-f]{64}$/i.test(normalizedKey)) {
+    return Buffer.from(normalizedKey, 'hex');
+  }
+
+  const keyBuffer = Buffer.from(normalizedKey, 'utf8');
   if (keyBuffer.length !== 32) {
-    throw new Error('TOKEN_ENCRYPTION_KEY must be exactly 32 bytes');
+    throw new Error(
+      `TOKEN_ENCRYPTION_KEY must be exactly 32 bytes (or 64 hex chars). Received ${keyBuffer.length} bytes`,
+    );
   }
   return keyBuffer;
 }
