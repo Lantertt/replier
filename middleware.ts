@@ -7,7 +7,7 @@ export default async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  return clerkMiddleware()(request);
+  return clerkMiddleware()(request, {} as never);
 }
 
 export const config = {
