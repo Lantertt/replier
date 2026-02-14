@@ -93,4 +93,36 @@ describe('instagram oauth client', () => {
       'No Instagram professional account linked',
     );
   });
+
+  it('accepts connected_instagram_account payload', async () => {
+    const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: [
+            {
+              id: 'page-1',
+              connected_instagram_account: {
+                id: '1799',
+                username: 'creator_linked',
+              },
+            },
+          ],
+        }),
+        {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        },
+      ),
+    );
+
+    const profile = await fetchInstagramProfile('ig-token');
+
+    expect(profile).toEqual({
+      id: '1799',
+      username: 'creator_linked',
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });

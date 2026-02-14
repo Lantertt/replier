@@ -17,6 +17,10 @@ interface FacebookPagesResponse {
       id: string;
       username?: string;
     };
+    connected_instagram_account?: {
+      id: string;
+      username?: string;
+    };
   }>;
 }
 
@@ -58,7 +62,7 @@ export async function exchangeCodeForAccessToken(code: string): Promise<{ access
 
 export async function fetchInstagramProfile(accessToken: string): Promise<{ id: string; username: string }> {
   const pagesParams = new URLSearchParams({
-    fields: 'id,instagram_business_account{id,username}',
+    fields: 'id,instagram_business_account{id,username},connected_instagram_account{id,username}',
     access_token: accessToken,
   });
 
@@ -68,7 +72,10 @@ export async function fetchInstagramProfile(accessToken: string): Promise<{ id: 
   }
 
   const pagesPayload = (await pagesResponse.json()) as FacebookPagesResponse;
-  const linkedAccount = (pagesPayload.data ?? []).find((page) => page.instagram_business_account?.id)?.instagram_business_account;
+  const linkedPage = (pagesPayload.data ?? []).find(
+    (page) => page.connected_instagram_account?.id || page.instagram_business_account?.id,
+  );
+  const linkedAccount = linkedPage?.connected_instagram_account ?? linkedPage?.instagram_business_account;
   if (!linkedAccount?.id) {
     throw new Error('No Instagram professional account linked');
   }
