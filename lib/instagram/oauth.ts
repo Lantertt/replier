@@ -26,6 +26,7 @@ export function buildMetaOAuthUrl(state: string): string {
 }
 
 export async function exchangeCodeForAccessToken(code: string): Promise<{ accessToken: string; expiresIn: number }> {
+  const shouldDebug = process.env.DEBUG_INSTAGRAM_CALLBACK_PAYLOAD === 'true' || process.env.NODE_ENV !== 'production';
   const body = new URLSearchParams({
     client_id: process.env.META_APP_ID || '',
     client_secret: process.env.META_APP_SECRET || '',
@@ -41,11 +42,22 @@ export async function exchangeCodeForAccessToken(code: string): Promise<{ access
     },
     body,
   });
-  if (!response.ok) {
-    throw new Error('Failed to exchange OAuth code for access token');
+  const raw = await response.text();
+  if (shouldDebug) {
+    console.info('[instagram-oauth] token exchange status', response.status);
+    console.info('[instagram-oauth] token exchange raw', raw);
   }
 
-  const data = (await response.json()) as OAuthTokenResponse;
+  if (!response.ok) {
+    throw new Error(`Failed to exchange OAuth code for access token (${response.status}): ${raw}`);
+  }
+
+  let data: OAuthTokenResponse;
+  try {
+    data = JSON.parse(raw) as OAuthTokenResponse;
+  } catch {
+    throw new Error('Failed to parse OAuth token exchange payload');
+  }
   if (!data.access_token) {
     throw new Error('OAuth token exchange returned no access token');
   }

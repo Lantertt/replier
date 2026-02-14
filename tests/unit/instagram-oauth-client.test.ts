@@ -42,6 +42,29 @@ describe('instagram oauth client', () => {
     expect(String(requestInit?.body)).toContain('code=code-123');
   });
 
+  it('includes status and payload when token exchange fails', async () => {
+    vi.spyOn(global, 'fetch').mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ error_type: 'OAuthException', code: 400, error_message: 'Invalid redirect_uri' }), {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }),
+      ),
+    );
+
+    let message = '';
+    try {
+      await exchangeCodeForAccessToken('code-123');
+    } catch (error) {
+      message = String(error);
+    }
+
+    expect(message).toContain('400');
+    expect(message).toContain('Invalid redirect_uri');
+  });
+
   it('uses user_id field in profile response', async () => {
     const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ user_id: '1789', username: 'creator' }), {
