@@ -38,6 +38,9 @@ describe('operational prompt generator', () => {
     expect(headers.Authorization).toBe('Bearer test-openai-key');
     expect(String(requestInit?.body)).toContain('Vitamin C Serum');
     expect(String(requestInit?.body)).toContain('피부톤 개선');
+    expect(String(requestInit?.body)).toContain('SYSTEM PROMPT TEMPLATE:');
+    const payload = JSON.parse(String(requestInit?.body)) as Record<string, unknown>;
+    expect(payload.temperature).toBeUndefined();
   });
 
   it('throws detailed error when openai call fails', async () => {

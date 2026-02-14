@@ -1,11 +1,11 @@
 import { auth } from '@clerk/nextjs/server';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 
-import { generateDraft } from '@/lib/ai/draft';
+import { generateDraftFromPrompt } from '@/lib/ai/draft';
 import { classifyIntent } from '@/lib/ai/intent';
 import { db } from '@/db/client';
-import { adminAdContexts, instagramAccounts, promptAssignments, promptTemplates, replyDrafts } from '@/db/schema';
+import { instagramAccounts, promptAssignments, promptTemplates, replyDrafts } from '@/db/schema';
 
 interface DraftPayload {
   igCommentId?: string;
@@ -66,43 +66,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Selected prompt is not available for this user' }, { status: 403 });
   }
 
-  const contextRows = await dbClient
-    .select()
-    .from(adminAdContexts)
-    .where(and(eq(adminAdContexts.targetIgUserId, linked.igUserId), eq(adminAdContexts.productName, selectedPrompt.productName)))
-    .orderBy(desc(adminAdContexts.updatedAt))
-    .limit(1);
-
-  let context = contextRows[0];
-  if (!context) {
-    const fallbackRows = await dbClient
-      .select()
-      .from(adminAdContexts)
-      .where(eq(adminAdContexts.targetIgUserId, linked.igUserId))
-      .orderBy(desc(adminAdContexts.updatedAt))
-      .limit(1);
-    context = fallbackRows[0];
-  }
-
-  if (!context) {
-    return NextResponse.json({ error: 'No ad context configured for this account' }, { status: 404 });
-  }
-
   const intent = classifyIntent(payload.commentText);
   const status = intent === 'risk' ? 'hold' : 'draft';
 
-  const aiDraft = generateDraft({
+  const aiDraft = await generateDraftFromPrompt({
     commentText: payload.commentText,
     intent,
-    context: {
-      productName: context.productName,
-      uspText: context.uspText,
-      salesLink: context.salesLink,
-      discountCode: context.discountCode,
-      requiredKeywords: context.requiredKeywords as string[],
-      bannedKeywords: context.bannedKeywords as string[],
-      toneNotes: [context.toneNotes, selectedPrompt.promptBody].filter(Boolean).join(' / '),
-    },
+    operationalPrompt: selectedPrompt.promptBody,
   });
 
   const inserted = await dbClient

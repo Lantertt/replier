@@ -5,3 +5,8 @@ export const promptTemplateSchema = z.object({
   productName: z.string().min(1),
   promptBody: z.string().min(1),
 });
+
+export const promptTemplateUpdateSchema = z.object({
+  promptId: z.string().uuid(),
+  promptBody: z.string().min(1),
+});

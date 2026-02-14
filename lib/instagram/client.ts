@@ -14,10 +14,36 @@ export interface InstagramComment {
   username: string;
 }
 
+interface InstagramCommentsPayload {
+  data?: Array<{
+    id: string;
+    text?: string;
+    username?: string;
+    from?: {
+      username?: string;
+    };
+  }>;
+  error?: {
+    message?: string;
+    type?: string;
+    code?: number;
+  };
+}
+
 function assertOk(response: Response, message: string): void {
   if (!response.ok) {
     throw new Error(message);
   }
+}
+
+function shouldLogInstagramComments(): boolean {
+  if (process.env.LOG_INSTAGRAM_COMMENTS === 'true') {
+    return true;
+  }
+  if (process.env.LOG_INSTAGRAM_COMMENTS === 'false') {
+    return false;
+  }
+  return process.env.NODE_ENV !== 'production';
 }
 
 export function normalizeComment(input: { id: string; text: string; username: string }): InstagramComment {
@@ -52,24 +78,62 @@ export async function listPosts(igUserId: string, accessToken: string): Promise<
 
 export async function listComments(postId: string, accessToken: string): Promise<InstagramComment[]> {
   const params = new URLSearchParams({
-    fields: 'id,text,username',
+    fields: 'id,text,username,from,timestamp,parent_id',
     access_token: accessToken,
   });
 
-  const response = await fetch(`https://graph.instagram.com/${GRAPH_VERSION}/${postId}/comments?${params.toString()}`);
-  assertOk(response, 'Failed to fetch post comments');
+  async function fetchCommentsFromHost(host: 'graph.instagram.com' | 'graph.facebook.com'): Promise<InstagramComment[]> {
+    const url = `https://${host}/${GRAPH_VERSION}/${postId}/comments?${params.toString()}`;
+    const response = await fetch(url);
+    const raw = await response.text();
 
-  const data = (await response.json()) as {
-    data?: Array<{ id: string; text?: string; username?: string }>;
-  };
+    if (shouldLogInstagramComments()) {
+      console.info(
+        '[instagram-comments] response',
+        JSON.stringify({
+          host,
+          postId,
+          status: response.status,
+          raw,
+        }),
+      );
+    }
 
-  return (data.data ?? []).map((comment) =>
-    normalizeComment({
-      id: comment.id,
-      text: comment.text ?? '',
-      username: comment.username ?? 'unknown',
-    }),
-  );
+    if (!response.ok) {
+      throw new Error(`Failed to fetch post comments (${host})`);
+    }
+
+    let payload: InstagramCommentsPayload;
+    try {
+      payload = JSON.parse(raw) as InstagramCommentsPayload;
+    } catch {
+      throw new Error(`Failed to parse post comments response (${host})`);
+    }
+
+    if (payload.error) {
+      throw new Error(
+        `Instagram comments API error (${host}): ${payload.error.message ?? 'unknown error'}${
+          payload.error.code ? ` [${payload.error.code}]` : ''
+        }`,
+      );
+    }
+
+    return (payload.data ?? []).map((comment) =>
+      normalizeComment({
+        id: comment.id,
+        text: comment.text ?? '',
+        username: comment.username ?? comment.from?.username ?? 'unknown',
+      }),
+    );
+  }
+
+  const primaryComments = await fetchCommentsFromHost('graph.instagram.com');
+  if (primaryComments.length > 0) {
+    return primaryComments;
+  }
+
+  const fallbackComments = await fetchCommentsFromHost('graph.facebook.com');
+  return fallbackComments;
 }
 
 export async function publishReply(commentId: string, message: string, accessToken: string): Promise<{ id: string }> {

@@ -28,6 +28,70 @@ describe('instagram client endpoints', () => {
     expect(String(requestUrl)).toContain('https://graph.instagram.com/v23.0/post-1/comments');
   });
 
+  it('maps comment username from from.username when username field is missing', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: [{ id: 'comment-2', text: 'hello', from: { username: 'from-user' } }],
+        }),
+        {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        },
+      ),
+    );
+
+    const comments = await listComments('post-2', 'token-2');
+
+    expect(comments).toEqual([
+      {
+        id: 'comment-2',
+        text: 'hello',
+        username: 'from-user',
+      },
+    ]);
+  });
+
+  it('retries comments lookup with graph.facebook.com when instagram host returns empty list', async () => {
+    const fetchMock = vi
+      .spyOn(global, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: [],
+          }),
+          {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: [{ id: 'comment-3', text: 'fallback', from: { username: 'fallback-user' } }],
+          }),
+          {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          },
+        ),
+      );
+
+    const comments = await listComments('post-3', 'token-3');
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(String(fetchMock.mock.calls[0][0])).toContain('https://graph.instagram.com/v23.0/post-3/comments');
+    expect(String(fetchMock.mock.calls[1][0])).toContain('https://graph.facebook.com/v23.0/post-3/comments');
+    expect(comments[0]?.username).toBe('fallback-user');
+  });
+
   it('loads posts via graph.instagram.com endpoint with ig user id', async () => {
     const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue(
       new Response(

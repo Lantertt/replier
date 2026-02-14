@@ -52,8 +52,11 @@ export default function PromptManagement() {
   const [assignments, setAssignments] = useState<PromptAssignmentItem[]>([]);
   const [generateForm, setGenerateForm] = useState(initialGenerateForm);
   const [assignmentForm, setAssignmentForm] = useState(initialAssignmentForm);
+  const [editingPromptId, setEditingPromptId] = useState('');
+  const [editingPromptBody, setEditingPromptBody] = useState('');
   const [promptMessage, setPromptMessage] = useState('');
   const [assignmentMessage, setAssignmentMessage] = useState('');
+  const [editPromptMessage, setEditPromptMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [usernameQuery, setUsernameQuery] = useState('');
   const [usernameSuggestions, setUsernameSuggestions] = useState<InstagramUserSuggestion[]>([]);
@@ -132,6 +135,12 @@ export default function PromptManagement() {
     setShowUsernameSuggestions(false);
   }
 
+  function beginEditPrompt(prompt: PromptTemplateItem) {
+    setEditingPromptId(prompt.id);
+    setEditingPromptBody(prompt.promptBody);
+    setEditPromptMessage('');
+  }
+
   async function handleGeneratePrompt(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
@@ -194,6 +203,42 @@ export default function PromptManagement() {
       setAssignmentMessage(`${data.assignedCount ?? targetUsernames.length}개 IG 계정에 프롬프트 권한을 부여했습니다.`);
     } catch (error) {
       setAssignmentMessage(error instanceof Error ? error.message : '오류가 발생했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleUpdatePrompt(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editingPromptId) {
+      setEditPromptMessage('수정할 프롬프트를 먼저 선택해 주세요.');
+      return;
+    }
+
+    setLoading(true);
+    setEditPromptMessage('');
+
+    try {
+      const response = await fetch('/api/admin/prompts', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          promptId: editingPromptId,
+          promptBody: editingPromptBody,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('운영 프롬프트 수정에 실패했습니다.');
+      }
+
+      const data = (await response.json()) as { prompt: PromptTemplateItem };
+      setPrompts((prev) => prev.map((item) => (item.id === data.prompt.id ? { ...item, promptBody: data.prompt.promptBody } : item)));
+      setEditPromptMessage('운영 프롬프트를 저장했습니다.');
+    } catch (error) {
+      setEditPromptMessage(error instanceof Error ? error.message : '오류가 발생했습니다.');
     } finally {
       setLoading(false);
     }
@@ -275,11 +320,42 @@ export default function PromptManagement() {
                   <li key={prompt.id} className="rounded-xl border border-[hsl(var(--border))/0.8] bg-[hsl(var(--secondary))/0.4] p-3">
                     <p className="text-sm font-semibold">{prompt.name}</p>
                     <p className="text-xs text-[hsl(var(--muted-foreground))]">제품: {prompt.productName}</p>
+                    <div className="mt-2 flex items-center justify-between gap-3">
+                      <p className="line-clamp-2 text-xs text-[hsl(var(--muted-foreground))]">{prompt.promptBody}</p>
+                      <Button type="button" variant="outline" onClick={() => beginEditPrompt(prompt)}>
+                        불러와 수정
+                      </Button>
+                    </div>
                   </li>
                 ))}
               </ul>
             )}
           </div>
+
+          <form className="space-y-3" onSubmit={handleUpdatePrompt}>
+            <p className="text-sm font-semibold text-[hsl(var(--foreground))]">운영 프롬프트 수정</p>
+            {editingPromptId ? null : (
+              <p className="text-xs text-[hsl(var(--muted-foreground))]">목록에서 “불러와 수정”을 눌러 프롬프트를 선택하세요.</p>
+            )}
+            <div className="space-y-2">
+              <Label htmlFor="editingPromptBody">프롬프트 본문</Label>
+              <Textarea
+                id="editingPromptBody"
+                value={editingPromptBody}
+                onChange={(event) => setEditingPromptBody(event.target.value)}
+                placeholder="수정할 운영 프롬프트를 입력하세요."
+                className="min-h-48"
+                disabled={!editingPromptId}
+                required
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <Button type="submit" disabled={loading || !editingPromptId}>
+                수정 저장
+              </Button>
+              <p className="text-sm text-[hsl(var(--muted-foreground))]">{editPromptMessage}</p>
+            </div>
+          </form>
         </CardContent>
       </Card>
 
