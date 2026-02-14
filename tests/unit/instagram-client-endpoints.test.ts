@@ -92,6 +92,40 @@ describe('instagram client endpoints', () => {
     expect(comments[0]?.username).toBe('fallback-user');
   });
 
+  it('returns primary empty list when fallback host fails', async () => {
+    vi.spyOn(global, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: [],
+          }),
+          {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            error: { message: 'Unsupported get request', code: 100 },
+          }),
+          {
+            status: 400,
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          },
+        ),
+      );
+
+    const comments = await listComments('post-4', 'token-4');
+
+    expect(comments).toEqual([]);
+  });
+
   it('loads posts via graph.instagram.com endpoint with ig user id', async () => {
     const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue(
       new Response(

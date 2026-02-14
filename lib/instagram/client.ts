@@ -132,8 +132,21 @@ export async function listComments(postId: string, accessToken: string): Promise
     return primaryComments;
   }
 
-  const fallbackComments = await fetchCommentsFromHost('graph.facebook.com');
-  return fallbackComments;
+  try {
+    const fallbackComments = await fetchCommentsFromHost('graph.facebook.com');
+    return fallbackComments;
+  } catch (error) {
+    if (shouldLogInstagramComments()) {
+      console.warn(
+        '[instagram-comments] fallback failed',
+        JSON.stringify({
+          postId,
+          error: error instanceof Error ? error.message : String(error),
+        }),
+      );
+    }
+    return primaryComments;
+  }
 }
 
 export async function publishReply(commentId: string, message: string, accessToken: string): Promise<{ id: string }> {
