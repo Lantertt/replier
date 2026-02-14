@@ -22,21 +22,28 @@ interface PromptAssignmentItem {
   productName: string;
 }
 
-const initialPromptForm = {
+const initialGenerateForm = {
   name: '',
   productName: '',
-  promptBody: '',
+  productInfo: '',
+  audienceInfo: '',
+  additionalRequirements: '',
 };
 
 const initialAssignmentForm = {
-  targetIgUserId: '',
+  targetIgUserIdsText: '',
   promptTemplateId: '',
+  lookupIgUserId: '',
 };
+
+function parseIgUserIds(input: string): string[] {
+  return Array.from(new Set(input.split(/[\n,]/g).map((value) => value.trim()).filter(Boolean)));
+}
 
 export default function PromptManagement() {
   const [prompts, setPrompts] = useState<PromptTemplateItem[]>([]);
   const [assignments, setAssignments] = useState<PromptAssignmentItem[]>([]);
-  const [promptForm, setPromptForm] = useState(initialPromptForm);
+  const [generateForm, setGenerateForm] = useState(initialGenerateForm);
   const [assignmentForm, setAssignmentForm] = useState(initialAssignmentForm);
   const [promptMessage, setPromptMessage] = useState('');
   const [assignmentMessage, setAssignmentMessage] = useState('');
@@ -71,25 +78,26 @@ export default function PromptManagement() {
     });
   }, []);
 
-  async function handleCreatePrompt(event: React.FormEvent<HTMLFormElement>) {
+  async function handleGeneratePrompt(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
     setPromptMessage('');
 
     try {
-      const response = await fetch('/api/admin/prompts', {
+      const response = await fetch('/api/admin/prompts/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(promptForm),
+        body: JSON.stringify(generateForm),
       });
       if (!response.ok) {
-        throw new Error('프롬프트 저장에 실패했습니다.');
+        throw new Error('운영 프롬프트 생성에 실패했습니다.');
       }
+
       await loadPrompts();
-      setPromptForm(initialPromptForm);
-      setPromptMessage('프롬프트를 저장했습니다.');
+      setGenerateForm(initialGenerateForm);
+      setPromptMessage('운영 프롬프트를 생성하고 저장했습니다.');
     } catch (error) {
       setPromptMessage(error instanceof Error ? error.message : '오류가 발생했습니다.');
     } finally {
@@ -103,19 +111,33 @@ export default function PromptManagement() {
     setAssignmentMessage('');
 
     try {
+      const targetIgUserIds = parseIgUserIds(assignmentForm.targetIgUserIdsText);
+      if (targetIgUserIds.length === 0) {
+        throw new Error('허용할 Instagram User ID를 1개 이상 입력해 주세요.');
+      }
+
       const response = await fetch('/api/admin/prompt-assignments', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(assignmentForm),
+        body: JSON.stringify({
+          targetIgUserIds,
+          promptTemplateId: assignmentForm.promptTemplateId,
+        }),
       });
       if (!response.ok) {
         throw new Error('사용자 프롬프트 권한 부여에 실패했습니다.');
       }
 
-      await loadAssignments(assignmentForm.targetIgUserId);
-      setAssignmentMessage('사용자에게 프롬프트 권한을 부여했습니다.');
+      const data = (await response.json()) as { assignedCount?: number };
+      const lookupTarget = assignmentForm.lookupIgUserId || targetIgUserIds[0];
+      await loadAssignments(lookupTarget);
+      setAssignmentForm((prev) => ({
+        ...prev,
+        lookupIgUserId: lookupTarget,
+      }));
+      setAssignmentMessage(`${data.assignedCount ?? targetIgUserIds.length}개 IG 계정에 프롬프트 권한을 부여했습니다.`);
     } catch (error) {
       setAssignmentMessage(error instanceof Error ? error.message : '오류가 발생했습니다.');
     } finally {
@@ -128,17 +150,18 @@ export default function PromptManagement() {
       <Card>
         <CardHeader>
           <CardTitle className="text-2xl">프롬프트 템플릿 관리</CardTitle>
-          <CardDescription>제품별 프롬프트 원문은 관리자만 확인하고 수정할 수 있습니다.</CardDescription>
+          <CardDescription>관리자는 제품정보를 넣어 운영용 프롬프트를 자동 생성하고 저장할 수 있습니다.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <form className="space-y-4" onSubmit={handleCreatePrompt}>
+          <form className="space-y-4" onSubmit={handleGeneratePrompt}>
+            <p className="text-sm font-semibold text-[hsl(var(--foreground))]">운영 프롬프트 자동 생성</p>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="promptName">프롬프트 이름</Label>
                 <Input
                   id="promptName"
-                  value={promptForm.name}
-                  onChange={(event) => setPromptForm((prev) => ({ ...prev, name: event.target.value }))}
+                  value={generateForm.name}
+                  onChange={(event) => setGenerateForm((prev) => ({ ...prev, name: event.target.value }))}
                   required
                 />
               </div>
@@ -146,24 +169,43 @@ export default function PromptManagement() {
                 <Label htmlFor="promptProductName">제품명</Label>
                 <Input
                   id="promptProductName"
-                  value={promptForm.productName}
-                  onChange={(event) => setPromptForm((prev) => ({ ...prev, productName: event.target.value }))}
+                  value={generateForm.productName}
+                  onChange={(event) => setGenerateForm((prev) => ({ ...prev, productName: event.target.value }))}
                   required
                 />
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="promptBody">프롬프트 본문</Label>
+              <Label htmlFor="productInfo">제품 정보</Label>
               <Textarea
-                id="promptBody"
-                value={promptForm.promptBody}
-                onChange={(event) => setPromptForm((prev) => ({ ...prev, promptBody: event.target.value }))}
+                id="productInfo"
+                value={generateForm.productInfo}
+                onChange={(event) => setGenerateForm((prev) => ({ ...prev, productInfo: event.target.value }))}
+                placeholder="제품 USP, 가격/혜택, 사용법, 주의사항 등"
                 required
               />
             </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="audienceInfo">타겟 고객 정보 (선택)</Label>
+                <Input
+                  id="audienceInfo"
+                  value={generateForm.audienceInfo}
+                  onChange={(event) => setGenerateForm((prev) => ({ ...prev, audienceInfo: event.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="additionalRequirements">추가 요구사항 (선택)</Label>
+                <Input
+                  id="additionalRequirements"
+                  value={generateForm.additionalRequirements}
+                  onChange={(event) => setGenerateForm((prev) => ({ ...prev, additionalRequirements: event.target.value }))}
+                />
+              </div>
+            </div>
             <div className="flex items-center gap-3">
               <Button type="submit" disabled={loading}>
-                프롬프트 저장
+                운영 프롬프트 생성
               </Button>
               <p className="text-sm text-[hsl(var(--muted-foreground))]">{promptMessage}</p>
             </div>
@@ -190,20 +232,11 @@ export default function PromptManagement() {
       <Card>
         <CardHeader>
           <CardTitle className="text-2xl">사용자 프롬프트 권한 부여</CardTitle>
-          <CardDescription>선택한 사용자(Instagram ID)가 사용할 수 있는 프롬프트 목록을 제어합니다.</CardDescription>
+          <CardDescription>관리자가 허용한 Instagram ID들만 해당 운영 프롬프트를 사용할 수 있습니다.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <form className="space-y-4" onSubmit={handleAssignPrompt}>
             <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="assignmentIgUserId">Instagram User ID</Label>
-                <Input
-                  id="assignmentIgUserId"
-                  value={assignmentForm.targetIgUserId}
-                  onChange={(event) => setAssignmentForm((prev) => ({ ...prev, targetIgUserId: event.target.value }))}
-                  required
-                />
-              </div>
               <div className="space-y-2">
                 <Label htmlFor="assignmentPromptId">할당할 프롬프트</Label>
                 <select
@@ -221,6 +254,24 @@ export default function PromptManagement() {
                   ))}
                 </select>
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="lookupIgUserId">권한 조회용 Instagram User ID</Label>
+                <Input
+                  id="lookupIgUserId"
+                  value={assignmentForm.lookupIgUserId}
+                  onChange={(event) => setAssignmentForm((prev) => ({ ...prev, lookupIgUserId: event.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="targetIgUserIdsText">허용할 Instagram User ID 목록</Label>
+              <Textarea
+                id="targetIgUserIdsText"
+                value={assignmentForm.targetIgUserIdsText}
+                onChange={(event) => setAssignmentForm((prev) => ({ ...prev, targetIgUserIdsText: event.target.value }))}
+                placeholder="한 줄에 하나 또는 쉼표로 여러 개 입력"
+                required
+              />
             </div>
             <div className="flex items-center gap-3">
               <Button type="submit" disabled={loading || prompts.length === 0}>
@@ -229,9 +280,9 @@ export default function PromptManagement() {
               <Button
                 type="button"
                 variant="outline"
-                disabled={!assignmentForm.targetIgUserId}
+                disabled={!assignmentForm.lookupIgUserId}
                 onClick={() => {
-                  void loadAssignments(assignmentForm.targetIgUserId).catch(() => {
+                  void loadAssignments(assignmentForm.lookupIgUserId).catch(() => {
                     setAssignmentMessage('할당 목록 조회에 실패했습니다.');
                   });
                 }}

@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/db/client';
 import { promptAssignments, promptTemplates } from '@/db/schema';
 import { isAdminUser } from '@/lib/auth';
-import { promptAssignmentSchema } from '@/lib/validation/prompt-assignment';
+import { promptAssignmentBatchSchema, promptAssignmentSchema } from '@/lib/validation/prompt-assignment';
 
 function assertAdmin(userId: string): boolean {
   return isAdminUser(userId, process.env.ADMIN_CLERK_USER_IDS || '');
@@ -54,17 +54,37 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const parsed = promptAssignmentSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  const parsedBatch = promptAssignmentBatchSchema.safeParse(body);
+
+  let targetIgUserIds: string[] = [];
+  let promptTemplateId = '';
+
+  if (parsedBatch.success) {
+    targetIgUserIds = parsedBatch.data.targetIgUserIds;
+    promptTemplateId = parsedBatch.data.promptTemplateId;
+  } else {
+    const parsedSingle = promptAssignmentSchema.safeParse(body);
+    if (!parsedSingle.success) {
+      return NextResponse.json({ error: parsedSingle.error.flatten() }, { status: 400 });
+    }
+    targetIgUserIds = [parsedSingle.data.targetIgUserId];
+    promptTemplateId = parsedSingle.data.promptTemplateId;
+  }
+
+  const normalizedIgUserIds = Array.from(new Set(targetIgUserIds.map((value) => value.trim()).filter(Boolean)));
+  if (normalizedIgUserIds.length === 0) {
+    return NextResponse.json({ error: 'targetIgUserIds is required' }, { status: 400 });
   }
 
   const created = await db()
     .insert(promptAssignments)
-    .values({
-      ...parsed.data,
-      grantedByAdminClerkId: userId,
-    })
+    .values(
+      normalizedIgUserIds.map((targetIgUserId) => ({
+        targetIgUserId,
+        promptTemplateId,
+        grantedByAdminClerkId: userId,
+      })),
+    )
     .onConflictDoUpdate({
       target: [promptAssignments.targetIgUserId, promptAssignments.promptTemplateId],
       set: {
@@ -75,7 +95,7 @@ export async function POST(request: Request) {
     })
     .returning();
 
-  return NextResponse.json({ assignment: created[0] });
+  return NextResponse.json({ assignments: created, assignedCount: created.length });
 }
 
 export async function DELETE(request: Request) {
