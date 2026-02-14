@@ -7,7 +7,7 @@ describe('instagram client endpoints', () => {
     vi.restoreAllMocks();
   });
 
-  it('loads comments via graph.instagram.com endpoint', async () => {
+  it('loads comments via graph.facebook.com endpoint', async () => {
     const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -25,10 +25,10 @@ describe('instagram client endpoints', () => {
     await listComments('post-1', 'token-1');
 
     const [requestUrl] = fetchMock.mock.calls[0];
-    expect(String(requestUrl)).toContain('https://graph.instagram.com/post-1/comments');
+    expect(String(requestUrl)).toContain('https://graph.facebook.com/v23.0/post-1/comments');
   });
 
-  it('publishes replies via graph.instagram.com endpoint', async () => {
+  it('publishes replies via graph.facebook.com endpoint', async () => {
     const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ id: 'reply-1' }), {
         status: 200,
@@ -41,6 +41,6 @@ describe('instagram client endpoints', () => {
     await publishReply('comment-1', 'thanks', 'token-1');
 
     const [requestUrl] = fetchMock.mock.calls[0];
-    expect(String(requestUrl)).toBe('https://graph.instagram.com/comment-1/replies');
+    expect(String(requestUrl)).toBe('https://graph.facebook.com/v23.0/comment-1/replies');
   });
 });

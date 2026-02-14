@@ -1,3 +1,5 @@
+const GRAPH_VERSION = 'v23.0';
+
 export interface InstagramPost {
   id: string;
   caption: string | null;
@@ -54,7 +56,7 @@ export async function listComments(postId: string, accessToken: string): Promise
     access_token: accessToken,
   });
 
-  const response = await fetch(`https://graph.instagram.com/${postId}/comments?${params.toString()}`);
+  const response = await fetch(`https://graph.facebook.com/${GRAPH_VERSION}/${postId}/comments?${params.toString()}`);
   assertOk(response, 'Failed to fetch post comments');
 
   const data = (await response.json()) as {
@@ -76,7 +78,7 @@ export async function publishReply(commentId: string, message: string, accessTok
     access_token: accessToken,
   });
 
-  const response = await fetch(`https://graph.instagram.com/${commentId}/replies`, {
+  const response = await fetch(`https://graph.facebook.com/${GRAPH_VERSION}/${commentId}/replies`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',

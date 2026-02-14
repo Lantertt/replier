@@ -1,3 +1,5 @@
+const META_OAUTH_VERSION = 'v23.0';
+
 interface OAuthTokenResponse {
   access_token: string;
   expires_in?: number;
@@ -5,7 +7,6 @@ interface OAuthTokenResponse {
 
 interface InstagramProfileResponse {
   id: string;
-  user_id?: string;
   username?: string;
 }
 
@@ -14,29 +15,22 @@ export function buildMetaOAuthUrl(state: string): string {
     client_id: process.env.META_APP_ID || '',
     redirect_uri: process.env.META_REDIRECT_URI || '',
     response_type: 'code',
-    scope: 'instagram_business_basic,instagram_business_manage_comments',
+    scope: 'instagram_basic,instagram_manage_comments,pages_show_list,pages_read_engagement',
     state,
   });
 
-  return `https://www.instagram.com/oauth/authorize?${params.toString()}`;
+  return `https://www.facebook.com/${META_OAUTH_VERSION}/dialog/oauth?${params.toString()}`;
 }
 
 export async function exchangeCodeForAccessToken(code: string): Promise<{ accessToken: string; expiresIn: number }> {
-  const body = new URLSearchParams({
+  const params = new URLSearchParams({
     client_id: process.env.META_APP_ID || '',
     client_secret: process.env.META_APP_SECRET || '',
-    grant_type: 'authorization_code',
     redirect_uri: process.env.META_REDIRECT_URI || '',
     code,
   });
 
-  const response = await fetch('https://api.instagram.com/oauth/access_token', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body,
-  });
+  const response = await fetch(`https://graph.facebook.com/${META_OAUTH_VERSION}/oauth/access_token?${params.toString()}`);
   if (!response.ok) {
     throw new Error('Failed to exchange OAuth code for access token');
   }
@@ -54,7 +48,7 @@ export async function exchangeCodeForAccessToken(code: string): Promise<{ access
 
 export async function fetchInstagramProfile(accessToken: string): Promise<{ id: string; username: string }> {
   const params = new URLSearchParams({
-    fields: 'user_id,username',
+    fields: 'id,username',
     access_token: accessToken,
   });
 
@@ -64,13 +58,12 @@ export async function fetchInstagramProfile(accessToken: string): Promise<{ id: 
   }
 
   const data = (await response.json()) as InstagramProfileResponse;
-  const id = data.user_id || data.id;
-  if (!id) {
+  if (!data.id) {
     throw new Error('Instagram profile missing id');
   }
 
   return {
-    id,
+    id: data.id,
     username: data.username ?? 'unknown',
   };
 }

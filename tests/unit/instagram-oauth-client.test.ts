@@ -10,7 +10,7 @@ describe('instagram oauth client', () => {
     vi.restoreAllMocks();
   });
 
-  it('exchanges auth code via Instagram token endpoint with POST', async () => {
+  it('exchanges auth code via Meta graph oauth endpoint', async () => {
     const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ access_token: 'ig-token', expires_in: 3600 }), {
         status: 200,
@@ -24,18 +24,16 @@ describe('instagram oauth client', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [requestUrl, requestInit] = fetchMock.mock.calls[0];
-    expect(String(requestUrl)).toBe('https://api.instagram.com/oauth/access_token');
-    expect(requestInit).toMatchObject({
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-    });
+    expect(String(requestUrl)).toContain('https://graph.facebook.com/v23.0/oauth/access_token');
+    expect(String(requestUrl)).toContain('client_id=meta-app-id');
+    expect(String(requestUrl)).toContain('client_secret=meta-app-secret');
+    expect(String(requestUrl)).toContain('code=code-123');
+    expect(requestInit).toBeUndefined();
   });
 
-  it('accepts user_id field in profile response', async () => {
+  it('uses id field in profile response', async () => {
     vi.spyOn(global, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ user_id: '1789', username: 'creator' }), {
+      new Response(JSON.stringify({ id: '1789', username: 'creator' }), {
         status: 200,
         headers: {
           'Content-Type': 'application/json',

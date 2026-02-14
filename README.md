@@ -48,20 +48,22 @@ pnpm vitest run
 pnpm playwright test tests/e2e/dashboard-flow.spec.ts
 ```
 
-## Instagram Login OAuth (MVP Dev Mode)
+## Meta OAuth (MVP Dev Mode)
 
-- In Meta App Dashboard, add **Instagram API with Instagram Login** product.
-- Keep app in development mode while testing.
-- Add tester accounts in App Roles for live OAuth test.
-- Set OAuth Redirect URI to the same value as `META_REDIRECT_URI`.
+- Use Meta OAuth dialog endpoint (`facebook.com/.../dialog/oauth`) flow.
+- Keep Meta app in development mode.
+- Add app-role accounts (admin/dev/tester) for live OAuth testing.
+- OAuth Redirect URI must exactly match `META_REDIRECT_URI`.
   - Example: `http://localhost:3000/api/instagram/callback`
-- Required scopes for this MVP:
-  - `instagram_business_basic`
-  - `instagram_business_manage_comments`
+- Required permissions for this MVP:
+  - `instagram_basic`
+  - `instagram_manage_comments`
+  - `pages_show_list`
+  - `pages_read_engagement`
 
 ## Credentials Note
 
-- Use the Meta app credentials (`META_APP_ID`, `META_APP_SECRET`) from the app where Instagram Login product is enabled.
+- Use the Meta app credentials (`META_APP_ID`, `META_APP_SECRET`) from your app.
 - No separate env var names are needed for this project.
 
 ## Admin Mapping Rule
