@@ -61,13 +61,30 @@ export async function exchangeCodeForAccessToken(code: string): Promise<{ access
 }
 
 export async function fetchInstagramProfile(accessToken: string): Promise<{ id: string; username: string }> {
+  const shouldDebug = process.env.DEBUG_INSTAGRAM_CALLBACK_PAYLOAD === 'true' || process.env.NODE_ENV !== 'production';
+
+  if (shouldDebug) {
+    try {
+      const permissionsParams = new URLSearchParams({
+        access_token: accessToken,
+      });
+      const permissionsResponse = await fetch(
+        `https://graph.facebook.com/${META_OAUTH_VERSION}/me/permissions?${permissionsParams.toString()}`,
+      );
+      const permissionsRaw = await permissionsResponse.text();
+      console.info('[instagram-oauth] me/permissions status', permissionsResponse.status);
+      console.info('[instagram-oauth] me/permissions raw', permissionsRaw);
+    } catch (error) {
+      console.info('[instagram-oauth] me/permissions debug error', String(error));
+    }
+  }
+
   const pagesParams = new URLSearchParams({
-    fields: 'id,instagram_business_account{id,username},connected_instagram_account{id,username}',
+    fields: 'id,name,tasks,instagram_business_account{id,username},connected_instagram_account{id,username}',
     access_token: accessToken,
   });
 
   const pagesResponse = await fetch(`https://graph.facebook.com/${META_OAUTH_VERSION}/me/accounts?${pagesParams.toString()}`);
-  const shouldDebug = process.env.DEBUG_INSTAGRAM_CALLBACK_PAYLOAD === 'true' || process.env.NODE_ENV !== 'production';
   const pagesRaw = await pagesResponse.text();
   if (shouldDebug) {
     console.info('[instagram-oauth] me/accounts status', pagesResponse.status);
