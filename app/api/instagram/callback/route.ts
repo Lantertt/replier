@@ -3,11 +3,16 @@ import { NextResponse } from 'next/server';
 import { db } from '@/db/client';
 import { instagramAccounts } from '@/db/schema';
 import { encryptToken } from '@/lib/crypto';
+import { buildInstagramCallbackPayload, shouldLogInstagramCallbackPayload } from '@/lib/instagram/callback-payload';
 import { exchangeCodeForAccessToken, fetchInstagramProfile } from '@/lib/instagram/oauth';
 import { parseSignedOAuthState } from '@/lib/oauth-state';
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
+  if (shouldLogInstagramCallbackPayload(process.env)) {
+    console.info('[instagram-callback] query payload', buildInstagramCallbackPayload(requestUrl.searchParams));
+  }
+
   const code = requestUrl.searchParams.get('code');
   const state = requestUrl.searchParams.get('state');
 

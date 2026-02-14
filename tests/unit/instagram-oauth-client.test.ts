@@ -7,6 +7,7 @@ describe('instagram oauth client', () => {
     process.env.META_APP_ID = 'meta-app-id';
     process.env.META_APP_SECRET = 'meta-app-secret';
     process.env.META_REDIRECT_URI = 'https://example.com/api/instagram/callback';
+    delete process.env.DEBUG_INSTAGRAM_CALLBACK_PAYLOAD;
     vi.restoreAllMocks();
   });
 
@@ -124,5 +125,41 @@ describe('instagram oauth client', () => {
       username: 'creator_linked',
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('logs me/accounts payload when debug flag is enabled', async () => {
+    process.env.DEBUG_INSTAGRAM_CALLBACK_PAYLOAD = 'true';
+    const consoleSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
+
+    vi.spyOn(global, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: [
+            {
+              id: 'page-1',
+              connected_instagram_account: {
+                id: '1799',
+                username: 'creator_linked',
+              },
+            },
+          ],
+        }),
+        {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        },
+      ),
+    );
+
+    await fetchInstagramProfile('ig-token');
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[instagram-oauth] me/accounts payload',
+      expect.objectContaining({
+        data: expect.any(Array),
+      }),
+    );
   });
 });

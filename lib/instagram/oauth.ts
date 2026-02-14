@@ -72,6 +72,10 @@ export async function fetchInstagramProfile(accessToken: string): Promise<{ id: 
   }
 
   const pagesPayload = (await pagesResponse.json()) as FacebookPagesResponse;
+  if (process.env.DEBUG_INSTAGRAM_CALLBACK_PAYLOAD === 'true' || process.env.NODE_ENV !== 'production') {
+    console.info('[instagram-oauth] me/accounts payload', pagesPayload);
+  }
+
   const linkedPage = (pagesPayload.data ?? []).find(
     (page) => page.connected_instagram_account?.id || page.instagram_business_account?.id,
   );
