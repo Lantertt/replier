@@ -19,7 +19,6 @@ Copy `.env.example` into `.env.local` and fill:
 - `CLERK_SECRET_KEY`
 - `DATABASE_URL`
 - `OPENAI_API_KEY`
-- `NEXT_PUBLIC_META_APP_ID` (same value as `META_APP_ID`)
 - `META_APP_ID`
 - `META_APP_SECRET`
 - `META_REDIRECT_URI`
@@ -52,6 +51,7 @@ pnpm playwright test tests/e2e/dashboard-flow.spec.ts
 ## Meta OAuth (MVP Dev Mode)
 
 - Use Meta OAuth dialog endpoint (`facebook.com/.../dialog/oauth`) flow.
+- User auth is handled by Clerk. Instagram 권한 위임은 `/api/instagram/connect` 서버 리다이렉트 OAuth로 별도 처리합니다.
 - Keep Meta app in development mode.
 - Add app-role accounts (admin/dev/tester) for live OAuth testing.
 - OAuth Redirect URI must exactly match `META_REDIRECT_URI`.
