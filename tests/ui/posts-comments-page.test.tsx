@@ -10,4 +10,10 @@ describe('posts comments page', () => {
     expect(html).toContain('게시물 목록');
     expect(html).toContain('댓글 목록');
   });
+
+  it('renders available prompt selector for user', () => {
+    const html = renderToStaticMarkup(<PostsCommentsPage />);
+
+    expect(html).toContain('사용 가능한 프롬프트');
+  });
 });

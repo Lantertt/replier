@@ -46,8 +46,8 @@ export function generateDraft(input: GenerateDraftInput): string {
     draft = `불편을 드려 죄송해요. 해당 내용은 담당자와 확인해서 정확하게 다시 안내드릴게요.`;
   }
 
-  const withTone = `${draft} (${context.toneNotes})`;
-  const sanitized = sanitizeBannedWords(withTone, context.bannedKeywords);
+  const sanitized = sanitizeBannedWords(draft, context.bannedKeywords);
+  const toneSuffix = context.toneNotes ? ' 친근하고 신뢰감 있는 톤으로 안내드릴게요.' : '';
 
-  return `${sanitized}\n원댓글: ${commentText}`;
+  return `${sanitized}${toneSuffix}\n원댓글: ${commentText}`;
 }

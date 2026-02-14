@@ -1,6 +1,7 @@
 import React from 'react';
 
 import AdContextForm from '@/components/admin/ad-context-form';
+import PromptManagement from '@/components/admin/prompt-management';
 
 export default function AdminContextPage() {
   return (
@@ -13,6 +14,7 @@ export default function AdminContextPage() {
         </p>
       </div>
       <AdContextForm />
+      <PromptManagement />
     </div>
   );
 }

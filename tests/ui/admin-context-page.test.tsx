@@ -9,4 +9,11 @@ describe('admin context page', () => {
 
     expect(html).toContain('Instagram User ID');
   });
+
+  it('renders prompt management section', () => {
+    const html = renderToStaticMarkup(<AdminContextPage />);
+
+    expect(html).toContain('프롬프트 템플릿 관리');
+    expect(html).toContain('사용자 프롬프트 권한 부여');
+  });
 });

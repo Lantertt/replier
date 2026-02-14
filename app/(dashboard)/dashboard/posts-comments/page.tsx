@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
 import CommentList, { type CommentItem } from '@/components/posts-comments/comment-list';
 import PostList, { type PostItem } from '@/components/posts-comments/post-list';
@@ -8,6 +8,8 @@ import ReplyPanel from '@/components/posts-comments/reply-panel';
 import { Button } from '@/components/ui/button';
 
 export default function PostsCommentsPage() {
+  const [availablePrompts, setAvailablePrompts] = useState<Array<{ id: string; name: string; productName: string }>>([]);
+  const [selectedPromptId, setSelectedPromptId] = useState('');
   const [posts, setPosts] = useState<PostItem[]>([]);
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
@@ -17,6 +19,36 @@ export default function PostsCommentsPage() {
   const [statusMessage, setStatusMessage] = useState('');
 
   const selectedPostCaption = useMemo(() => posts.find((post) => post.id === selectedPostId)?.caption ?? '', [posts, selectedPostId]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadAvailablePrompts() {
+      try {
+        const response = await fetch('/api/prompts/available');
+        if (!response.ok) {
+          throw new Error('사용 가능한 프롬프트 목록을 불러오지 못했습니다.');
+        }
+        const data = (await response.json()) as { prompts: Array<{ id: string; name: string; productName: string }> };
+        if (!mounted) return;
+
+        setAvailablePrompts(data.prompts);
+        if (data.prompts.length > 0) {
+          setSelectedPromptId(data.prompts[0].id);
+        }
+      } catch (error) {
+        if (mounted) {
+          setStatusMessage(error instanceof Error ? error.message : '오류가 발생했습니다.');
+        }
+      }
+    }
+
+    void loadAvailablePrompts();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   async function loadPosts() {
     setLoading(true);
@@ -58,6 +90,10 @@ export default function PostsCommentsPage() {
 
   async function handleGenerateDraft() {
     if (!selectedComment || !selectedPostId) return;
+    if (!selectedPromptId) {
+      setStatusMessage('사용 가능한 프롬프트가 없습니다. 관리자에게 권한 부여를 요청하세요.');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -70,6 +106,7 @@ export default function PostsCommentsPage() {
           igCommentId: selectedComment.id,
           commentText: selectedComment.text,
           postId: selectedPostId,
+          selectedPromptId,
         }),
       });
       if (!response.ok) {
@@ -78,7 +115,8 @@ export default function PostsCommentsPage() {
 
       const data = (await response.json()) as { draft: { aiDraft: string; status: string } };
       setDraft(data.draft.aiDraft);
-      setStatusMessage(`초안 생성 완료 (status: ${data.draft.status})`);
+      const promptName = availablePrompts.find((prompt) => prompt.id === selectedPromptId)?.name;
+      setStatusMessage(`초안 생성 완료 (status: ${data.draft.status})${promptName ? ` · 프롬프트: ${promptName}` : ''}`);
     } catch (error) {
       setStatusMessage(error instanceof Error ? error.message : '오류가 발생했습니다.');
     } finally {
@@ -132,6 +170,27 @@ export default function PostsCommentsPage() {
           선택된 게시물: <span className="font-semibold text-[hsl(var(--foreground))]">{selectedPostCaption || selectedPostId}</span>
         </p>
       ) : null}
+
+      <div className="rounded-2xl border border-[hsl(var(--border))/0.8] bg-[hsl(var(--secondary))/0.45] p-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[hsl(var(--muted-foreground))]">사용 가능한 프롬프트</p>
+        <div className="mt-2 flex flex-wrap items-center gap-3">
+          <select
+            value={selectedPromptId}
+            onChange={(event) => setSelectedPromptId(event.target.value)}
+            className="flex h-10 min-w-[260px] rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--background))/0.7] px-3 py-2 text-sm text-[hsl(var(--foreground))] ring-offset-background transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent))] focus-visible:ring-offset-2"
+          >
+            {availablePrompts.length === 0 ? <option value="">권한 부여된 프롬프트 없음</option> : null}
+            {availablePrompts.map((prompt) => (
+              <option key={prompt.id} value={prompt.id}>
+                {prompt.name} ({prompt.productName})
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-[hsl(var(--muted-foreground))]">
+            프롬프트 본문은 관리자만 볼 수 있으며, 사용자는 이름/제품명만 확인할 수 있습니다.
+          </p>
+        </div>
+      </div>
 
       <div className="grid gap-4 xl:grid-cols-[0.9fr_1fr_1.1fr]">
         <PostList posts={posts} selectedPostId={selectedPostId} onSelect={(postId) => void handleSelectPost(postId)} />

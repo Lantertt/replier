@@ -1,4 +1,4 @@
-import { index, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { boolean, index, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 
 export const users = pgTable('users', {
   id: text('id').primaryKey(),
@@ -62,3 +62,36 @@ export const oauthStates = pgTable('oauth_states', {
   clerkUserId: text('clerk_user_id').notNull(),
   expiresAt: timestamp('expires_at').notNull(),
 });
+
+export const promptTemplates = pgTable(
+  'prompt_templates',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    name: text('name').notNull(),
+    productName: text('product_name').notNull(),
+    promptBody: text('prompt_body').notNull(),
+    updatedByAdminClerkId: text('updated_by_admin_clerk_id').notNull(),
+    isActive: boolean('is_active').default(true).notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => [index('idx_prompt_templates_product_name').on(table.productName)],
+);
+
+export const promptAssignments = pgTable(
+  'prompt_assignments',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    targetIgUserId: text('target_ig_user_id').notNull(),
+    promptTemplateId: uuid('prompt_template_id').notNull(),
+    grantedByAdminClerkId: text('granted_by_admin_clerk_id').notNull(),
+    isActive: boolean('is_active').default(true).notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => [
+    index('idx_prompt_assignments_target_ig_user_id').on(table.targetIgUserId),
+    index('idx_prompt_assignments_prompt_template_id').on(table.promptTemplateId),
+    uniqueIndex('uq_prompt_assignments_target_prompt').on(table.targetIgUserId, table.promptTemplateId),
+  ],
+);

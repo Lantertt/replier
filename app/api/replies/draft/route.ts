@@ -1,16 +1,17 @@
 import { auth } from '@clerk/nextjs/server';
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 
 import { generateDraft } from '@/lib/ai/draft';
 import { classifyIntent } from '@/lib/ai/intent';
 import { db } from '@/db/client';
-import { adminAdContexts, instagramAccounts, replyDrafts } from '@/db/schema';
+import { adminAdContexts, instagramAccounts, promptAssignments, promptTemplates, replyDrafts } from '@/db/schema';
 
 interface DraftPayload {
   igCommentId?: string;
   commentText?: string;
   postId?: string;
+  selectedPromptId?: string;
 }
 
 export async function POST(request: Request) {
@@ -36,14 +37,53 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Instagram account not connected' }, { status: 404 });
   }
 
+  const availablePrompts = await dbClient
+    .select({
+      id: promptTemplates.id,
+      name: promptTemplates.name,
+      productName: promptTemplates.productName,
+      promptBody: promptTemplates.promptBody,
+    })
+    .from(promptAssignments)
+    .innerJoin(promptTemplates, eq(promptTemplates.id, promptAssignments.promptTemplateId))
+    .where(
+      and(
+        eq(promptAssignments.targetIgUserId, linked.igUserId),
+        eq(promptAssignments.isActive, true),
+        eq(promptTemplates.isActive, true),
+      ),
+    );
+
+  if (availablePrompts.length === 0) {
+    return NextResponse.json({ error: 'No prompt access granted for this user' }, { status: 403 });
+  }
+
+  const selectedPrompt = payload.selectedPromptId
+    ? availablePrompts.find((prompt) => prompt.id === payload.selectedPromptId)
+    : availablePrompts[0];
+
+  if (!selectedPrompt) {
+    return NextResponse.json({ error: 'Selected prompt is not available for this user' }, { status: 403 });
+  }
+
   const contextRows = await dbClient
     .select()
     .from(adminAdContexts)
-    .where(eq(adminAdContexts.targetIgUserId, linked.igUserId))
+    .where(and(eq(adminAdContexts.targetIgUserId, linked.igUserId), eq(adminAdContexts.productName, selectedPrompt.productName)))
     .orderBy(desc(adminAdContexts.updatedAt))
     .limit(1);
 
-  const context = contextRows[0];
+  let context = contextRows[0];
+  if (!context) {
+    const fallbackRows = await dbClient
+      .select()
+      .from(adminAdContexts)
+      .where(eq(adminAdContexts.targetIgUserId, linked.igUserId))
+      .orderBy(desc(adminAdContexts.updatedAt))
+      .limit(1);
+    context = fallbackRows[0];
+  }
+
   if (!context) {
     return NextResponse.json({ error: 'No ad context configured for this account' }, { status: 404 });
   }
@@ -61,7 +101,7 @@ export async function POST(request: Request) {
       discountCode: context.discountCode,
       requiredKeywords: context.requiredKeywords as string[],
       bannedKeywords: context.bannedKeywords as string[],
-      toneNotes: context.toneNotes,
+      toneNotes: [context.toneNotes, selectedPrompt.promptBody].filter(Boolean).join(' / '),
     },
   });
 
@@ -77,5 +117,5 @@ export async function POST(request: Request) {
     })
     .returning({ id: replyDrafts.id, status: replyDrafts.status, aiDraft: replyDrafts.aiDraft, intent: replyDrafts.intent });
 
-  return NextResponse.json({ draft: inserted[0] });
+  return NextResponse.json({ draft: inserted[0], selectedPrompt: { id: selectedPrompt.id, name: selectedPrompt.name } });
 }
