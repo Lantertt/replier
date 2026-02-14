@@ -1,8 +1,51 @@
-import React from 'react';
+'use client';
+
+import React, { useEffect, useState } from 'react';
 
 import ConnectionCard from '@/components/account/connection-card';
 
+interface AccountPayload {
+  account: {
+    igUserId: string;
+    username: string;
+  } | null;
+}
+
 export default function AccountPage() {
+  const [account, setAccount] = useState<AccountPayload['account']>(null);
+  const [statusMessage, setStatusMessage] = useState('');
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadAccountStatus() {
+      try {
+        const response = await fetch('/api/instagram/account');
+        if (!response.ok) {
+          throw new Error('계정 상태를 불러오지 못했습니다.');
+        }
+
+        const data = (await response.json()) as AccountPayload;
+        if (!mounted) return;
+
+        setAccount(data.account);
+        if (data.account) {
+          setStatusMessage(`연결됨: @${data.account.username} (${data.account.igUserId})`);
+        }
+      } catch {
+        if (mounted) {
+          setStatusMessage('연결 상태를 확인할 수 없어 수동 연결 버튼을 표시합니다.');
+        }
+      }
+    }
+
+    void loadAccountStatus();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   return (
     <div className="space-y-6">
       <div className="space-y-2">
@@ -12,7 +55,12 @@ export default function AccountPage() {
           사용자 OAuth 승인 후 `ig_user_id`가 저장되고, 관리자 컨텍스트 매핑에 사용됩니다.
         </p>
       </div>
-      <ConnectionCard connected={false} />
+      {statusMessage ? (
+        <p className="rounded-2xl border border-[hsl(var(--border))/0.8] bg-[hsl(var(--secondary))/0.6] px-4 py-3 text-sm text-[hsl(var(--muted-foreground))]">
+          {statusMessage}
+        </p>
+      ) : null}
+      <ConnectionCard connected={Boolean(account)} username={account?.username} igUserId={account?.igUserId} />
     </div>
   );
 }
