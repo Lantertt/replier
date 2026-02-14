@@ -24,6 +24,11 @@ interface PromptAssignmentItem {
   productName: string;
 }
 
+interface InstagramUserSuggestion {
+  igUserId: string;
+  username: string;
+}
+
 const initialGenerateForm = {
   name: '',
   productName: '',
@@ -50,6 +55,10 @@ export default function PromptManagement() {
   const [promptMessage, setPromptMessage] = useState('');
   const [assignmentMessage, setAssignmentMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [usernameQuery, setUsernameQuery] = useState('');
+  const [usernameSuggestions, setUsernameSuggestions] = useState<InstagramUserSuggestion[]>([]);
+  const [showUsernameSuggestions, setShowUsernameSuggestions] = useState(false);
+  const [isSearchingUsernames, setIsSearchingUsernames] = useState(false);
 
   async function loadPrompts() {
     const response = await fetch('/api/admin/prompts');
@@ -80,6 +89,48 @@ export default function PromptManagement() {
       setPromptMessage('프롬프트 목록을 불러오지 못했습니다.');
     });
   }, []);
+
+  useEffect(() => {
+    const normalizedQuery = parseUsernames(usernameQuery)[0] ?? '';
+    if (normalizedQuery.length < 2) {
+      setUsernameSuggestions([]);
+      setIsSearchingUsernames(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setIsSearchingUsernames(true);
+      void fetch(`/api/admin/instagram-users?q=${encodeURIComponent(normalizedQuery)}`)
+        .then(async (response) => {
+          if (!response.ok) {
+            throw new Error('username 검색에 실패했습니다.');
+          }
+          const data = (await response.json()) as { suggestions: InstagramUserSuggestion[] };
+          setUsernameSuggestions(data.suggestions);
+        })
+        .catch(() => {
+          setUsernameSuggestions([]);
+        })
+        .finally(() => {
+          setIsSearchingUsernames(false);
+        });
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [usernameQuery]);
+
+  function appendUsernameSuggestion(username: string) {
+    const current = parseUsernames(assignmentForm.targetUsernamesText);
+    const next = Array.from(new Set([...current, username]));
+
+    setAssignmentForm((prev) => ({
+      ...prev,
+      targetUsernamesText: next.map((value) => `@${value}`).join(', '),
+    }));
+    setUsernameQuery('');
+    setUsernameSuggestions([]);
+    setShowUsernameSuggestions(false);
+  }
 
   async function handleGeneratePrompt(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -265,6 +316,49 @@ export default function PromptManagement() {
                   onChange={(event) => setAssignmentForm((prev) => ({ ...prev, lookupUsername: event.target.value }))}
                   placeholder="@creator_name"
                 />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="usernameSearch">Instagram username 검색</Label>
+              <div className="relative">
+                <Input
+                  id="usernameSearch"
+                  value={usernameQuery}
+                  onFocus={() => setShowUsernameSuggestions(true)}
+                  onBlur={() => {
+                    setTimeout(() => setShowUsernameSuggestions(false), 120);
+                  }}
+                  onChange={(event) => {
+                    setUsernameQuery(event.target.value);
+                    setShowUsernameSuggestions(true);
+                  }}
+                  placeholder="@creator_name"
+                />
+                {showUsernameSuggestions && (isSearchingUsernames || usernameSuggestions.length > 0) && (
+                  <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--background))] shadow-[0_14px_35px_-18px_rgba(15,13,11,0.7)]">
+                    {isSearchingUsernames ? (
+                      <p className="px-3 py-2 text-xs text-[hsl(var(--muted-foreground))]">검색 중...</p>
+                    ) : (
+                      <ul className="max-h-60 overflow-auto">
+                        {usernameSuggestions.map((suggestion) => (
+                          <li key={suggestion.igUserId}>
+                            <button
+                              type="button"
+                              className="flex w-full items-center justify-between px-3 py-2 text-left text-sm transition hover:bg-[hsl(var(--secondary))/0.6]"
+                              onMouseDown={(event) => {
+                                event.preventDefault();
+                                appendUsernameSuggestion(suggestion.username);
+                              }}
+                            >
+                              <span>@{suggestion.username}</span>
+                              <span className="text-xs text-[hsl(var(--muted-foreground))]">{suggestion.igUserId}</span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
             <div className="space-y-2">

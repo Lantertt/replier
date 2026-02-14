@@ -17,5 +17,6 @@ describe('admin context page', () => {
     expect(html).toContain('사용자 프롬프트 권한 부여');
     expect(html).toContain('운영 프롬프트 자동 생성');
     expect(html).toContain('허용할 Instagram username 목록');
+    expect(html).toContain('Instagram username 검색');
   });
 });

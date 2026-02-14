@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,6 +17,11 @@ interface FormState {
   requiredKeywords: string;
   bannedKeywords: string;
   toneNotes: string;
+}
+
+interface InstagramUserSuggestion {
+  igUserId: string;
+  username: string;
 }
 
 const initialForm: FormState = {
@@ -41,6 +46,39 @@ export default function AdContextForm() {
   const [form, setForm] = useState<FormState>(initialForm);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [usernameQuery, setUsernameQuery] = useState('');
+  const [usernameSuggestions, setUsernameSuggestions] = useState<InstagramUserSuggestion[]>([]);
+  const [showUsernameSuggestions, setShowUsernameSuggestions] = useState(false);
+  const [isSearchingUsernames, setIsSearchingUsernames] = useState(false);
+
+  useEffect(() => {
+    const normalizedQuery = usernameQuery.trim().replace(/^@+/, '').toLowerCase();
+    if (normalizedQuery.length < 2) {
+      setUsernameSuggestions([]);
+      setIsSearchingUsernames(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setIsSearchingUsernames(true);
+      void fetch(`/api/admin/instagram-users?q=${encodeURIComponent(normalizedQuery)}`)
+        .then(async (response) => {
+          if (!response.ok) {
+            throw new Error('username 검색에 실패했습니다.');
+          }
+          const data = (await response.json()) as { suggestions: InstagramUserSuggestion[] };
+          setUsernameSuggestions(data.suggestions);
+        })
+        .catch(() => {
+          setUsernameSuggestions([]);
+        })
+        .finally(() => {
+          setIsSearchingUsernames(false);
+        });
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [usernameQuery]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -90,6 +128,52 @@ export default function AdContextForm() {
       <CardContent>
         <form className="space-y-6" onSubmit={handleSubmit}>
           <div className="grid gap-5 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="adContextUsernameSearch">Instagram username 검색</Label>
+              <div className="relative">
+                <Input
+                  id="adContextUsernameSearch"
+                  value={usernameQuery}
+                  onFocus={() => setShowUsernameSuggestions(true)}
+                  onBlur={() => {
+                    setTimeout(() => setShowUsernameSuggestions(false), 120);
+                  }}
+                  onChange={(event) => {
+                    setUsernameQuery(event.target.value);
+                    setShowUsernameSuggestions(true);
+                  }}
+                  placeholder="@creator_name"
+                />
+                {showUsernameSuggestions && (isSearchingUsernames || usernameSuggestions.length > 0) && (
+                  <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--background))] shadow-[0_14px_35px_-18px_rgba(15,13,11,0.7)]">
+                    {isSearchingUsernames ? (
+                      <p className="px-3 py-2 text-xs text-[hsl(var(--muted-foreground))]">검색 중...</p>
+                    ) : (
+                      <ul className="max-h-60 overflow-auto">
+                        {usernameSuggestions.map((suggestion) => (
+                          <li key={suggestion.igUserId}>
+                            <button
+                              type="button"
+                              className="flex w-full items-center justify-between px-3 py-2 text-left text-sm transition hover:bg-[hsl(var(--secondary))/0.6]"
+                              onMouseDown={(event) => {
+                                event.preventDefault();
+                                onFieldChange('targetIgUserId', suggestion.igUserId);
+                                setUsernameQuery(`@${suggestion.username}`);
+                                setShowUsernameSuggestions(false);
+                              }}
+                            >
+                              <span>@{suggestion.username}</span>
+                              <span className="text-xs text-[hsl(var(--muted-foreground))]">{suggestion.igUserId}</span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="targetIgUserId">Instagram User ID</Label>
               <Input
