@@ -1,11 +1,10 @@
-import { eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 
 import { db } from '@/db/client';
-import { instagramAccounts, oauthStates } from '@/db/schema';
+import { instagramAccounts } from '@/db/schema';
 import { encryptToken } from '@/lib/crypto';
 import { exchangeCodeForAccessToken, fetchInstagramProfile } from '@/lib/instagram/oauth';
-import { isOAuthStateExpired } from '@/lib/oauth-state';
+import { parseSignedOAuthState } from '@/lib/oauth-state';
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
@@ -16,13 +15,13 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Missing code or state' }, { status: 400 });
   }
 
-  const dbClient = db();
-  const rows = await dbClient.select().from(oauthStates).where(eq(oauthStates.state, state)).limit(1);
-  const stateRecord = rows[0];
+  const stateSecret = process.env.CLERK_SECRET_KEY || process.env.TOKEN_ENCRYPTION_KEY;
+  if (!stateSecret) {
+    return NextResponse.json({ error: 'OAuth state secret is not configured' }, { status: 500 });
+  }
 
-  await dbClient.delete(oauthStates).where(eq(oauthStates.state, state));
-
-  if (!stateRecord || isOAuthStateExpired(stateRecord.expiresAt)) {
+  const parsedState = parseSignedOAuthState(state.trim(), stateSecret);
+  if (!parsedState.valid) {
     return NextResponse.json({ error: 'Invalid or expired OAuth state' }, { status: 400 });
   }
 
@@ -36,11 +35,12 @@ export async function GET(request: Request) {
 
   const encryptedToken = encryptToken(token.accessToken, encryptionKey);
   const tokenExpiresAt = new Date(Date.now() + token.expiresIn * 1000);
+  const dbClient = db();
 
   await dbClient
     .insert(instagramAccounts)
     .values({
-      clerkUserId: stateRecord.clerkUserId,
+      clerkUserId: parsedState.clerkUserId,
       igUserId: profile.id,
       username: profile.username,
       accessTokenEncrypted: encryptedToken,
@@ -49,7 +49,7 @@ export async function GET(request: Request) {
     .onConflictDoUpdate({
       target: instagramAccounts.igUserId,
       set: {
-        clerkUserId: stateRecord.clerkUserId,
+        clerkUserId: parsedState.clerkUserId,
         username: profile.username,
         accessTokenEncrypted: encryptedToken,
         tokenExpiresAt,
