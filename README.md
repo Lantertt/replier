@@ -32,11 +32,10 @@ pnpm install
 pnpm dev
 ```
 
-## Drizzle Migration
+## Drizzle Schema Sync
 
 ```bash
-pnpm drizzle-kit generate
-pnpm drizzle-kit migrate
+pnpm db:push
 ```
 
 ## Test Commands
