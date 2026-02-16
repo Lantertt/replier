@@ -3,7 +3,8 @@ import { desc, eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 
 import { db } from '@/db/client';
-import { instagramAccounts, replyDrafts } from '@/db/schema';
+import { replyDrafts } from '@/db/schema';
+import { getSelectedInstagramAccountForUser } from '@/lib/instagram/account-selection';
 
 export async function GET() {
   const { userId } = await auth();
@@ -11,13 +12,7 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const linkedRows = await db()
-    .select({ igUserId: instagramAccounts.igUserId })
-    .from(instagramAccounts)
-    .where(eq(instagramAccounts.clerkUserId, userId))
-    .limit(1);
-
-  const linked = linkedRows[0];
+  const linked = await getSelectedInstagramAccountForUser(userId);
   if (!linked) {
     return NextResponse.json({ drafts: [] });
   }

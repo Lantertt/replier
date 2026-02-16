@@ -4,15 +4,24 @@ import React, { useEffect, useState } from 'react';
 
 import ConnectionCard from '@/components/account/connection-card';
 
+interface ConnectedAccount {
+  igUserId: string;
+  username: string;
+  isActive: boolean;
+}
+
 interface AccountPayload {
   account: {
     igUserId: string;
     username: string;
   } | null;
+  accounts: ConnectedAccount[];
 }
 
 export default function AccountPage() {
-  const [account, setAccount] = useState<AccountPayload['account']>(null);
+  const [accounts, setAccounts] = useState<ConnectedAccount[]>([]);
+  const [selectedIgUserId, setSelectedIgUserId] = useState<string | null>(null);
+  const [isSelecting, setIsSelecting] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
 
   useEffect(() => {
@@ -28,9 +37,12 @@ export default function AccountPage() {
         const data = (await response.json()) as AccountPayload;
         if (!mounted) return;
 
-        setAccount(data.account);
-        if (data.account) {
-          setStatusMessage(`연결됨: @${data.account.username} (${data.account.igUserId})`);
+        setAccounts(data.accounts ?? []);
+        const selected = data.account ?? null;
+        setSelectedIgUserId(selected?.igUserId ?? null);
+
+        if (selected) {
+          setStatusMessage(`연결됨: @${selected.username} (${selected.igUserId})`);
         }
       } catch {
         if (mounted) {
@@ -46,6 +58,53 @@ export default function AccountPage() {
     };
   }, []);
 
+  async function handleSelectAccount(nextIgUserId: string) {
+    if (!nextIgUserId || nextIgUserId === selectedIgUserId) {
+      return;
+    }
+
+    const previousAccounts = accounts;
+    const previousSelected = selectedIgUserId;
+    const selectedAccount = accounts.find((accountOption) => accountOption.igUserId === nextIgUserId);
+
+    setIsSelecting(true);
+    setSelectedIgUserId(nextIgUserId);
+    setAccounts((current) =>
+      current.map((accountOption) => ({
+        ...accountOption,
+        isActive: accountOption.igUserId === nextIgUserId,
+      })),
+    );
+
+    try {
+      const response = await fetch('/api/instagram/account/select', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ igUserId: nextIgUserId }),
+      });
+
+      if (!response.ok) {
+        throw new Error('계정 선택 변경에 실패했습니다.');
+      }
+
+      if (selectedAccount) {
+        setStatusMessage(`사용 계정 변경됨: @${selectedAccount.username} (${selectedAccount.igUserId})`);
+      }
+    } catch {
+      setAccounts(previousAccounts);
+      setSelectedIgUserId(previousSelected);
+      setStatusMessage('계정 선택 변경에 실패했습니다. 다시 시도해 주세요.');
+    } finally {
+      setIsSelecting(false);
+    }
+  }
+
+  const activeAccount = selectedIgUserId
+    ? accounts.find((accountOption) => accountOption.igUserId === selectedIgUserId) ?? null
+    : null;
+
   return (
     <div className="space-y-6">
       <div className="space-y-2">
@@ -60,7 +119,15 @@ export default function AccountPage() {
           {statusMessage}
         </p>
       ) : null}
-      <ConnectionCard connected={Boolean(account)} username={account?.username} igUserId={account?.igUserId} />
+      <ConnectionCard
+        connected={Boolean(activeAccount)}
+        username={activeAccount?.username}
+        igUserId={activeAccount?.igUserId}
+        accounts={accounts}
+        selectedIgUserId={activeAccount?.igUserId}
+        onSelectAccount={handleSelectAccount}
+        isSelecting={isSelecting}
+      />
     </div>
   );
 }

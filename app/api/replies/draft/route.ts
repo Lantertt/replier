@@ -5,7 +5,8 @@ import { NextResponse } from 'next/server';
 import { generateDraftFromPrompt } from '@/lib/ai/draft';
 import { classifyIntent } from '@/lib/ai/intent';
 import { db } from '@/db/client';
-import { instagramAccounts, promptAssignments, promptTemplates, replyDrafts } from '@/db/schema';
+import { promptAssignments, promptTemplates, replyDrafts } from '@/db/schema';
+import { getSelectedInstagramAccountForUser } from '@/lib/instagram/account-selection';
 
 interface DraftPayload {
   igCommentId?: string;
@@ -26,13 +27,7 @@ export async function POST(request: Request) {
   }
 
   const dbClient = db();
-  const linkedRows = await dbClient
-    .select({ igUserId: instagramAccounts.igUserId })
-    .from(instagramAccounts)
-    .where(eq(instagramAccounts.clerkUserId, userId))
-    .limit(1);
-
-  const linked = linkedRows[0];
+  const linked = await getSelectedInstagramAccountForUser(userId);
   if (!linked) {
     return NextResponse.json({ error: 'Instagram account not connected' }, { status: 404 });
   }

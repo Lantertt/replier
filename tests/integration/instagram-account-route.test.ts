@@ -12,9 +12,9 @@ describe('instagram account route', () => {
 
     const { GET } = await import('@/app/api/instagram/account/route');
     const response = await GET();
-    const json = (await response.json()) as { account: null };
+    const json = (await response.json()) as { account: null; accounts: [] };
 
     expect(response.status).toBe(200);
-    expect(json).toEqual({ account: null });
+    expect(json).toEqual({ account: null, accounts: [] });
   });
 });

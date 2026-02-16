@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 
 import { db } from '@/db/client';
@@ -69,6 +70,15 @@ export async function GET(request: Request) {
     const encryptedToken = encryptToken(token.accessToken, encryptionKey);
     const tokenExpiresAt = new Date(Date.now() + token.expiresIn * 1000);
     const dbClient = db();
+    const now = new Date();
+
+    await dbClient
+      .update(instagramAccounts)
+      .set({
+        isActive: false,
+        updatedAt: now,
+      })
+      .where(eq(instagramAccounts.clerkUserId, parsedState.clerkUserId));
 
     await dbClient
       .insert(instagramAccounts)
@@ -76,6 +86,7 @@ export async function GET(request: Request) {
         clerkUserId: parsedState.clerkUserId,
         igUserId: profile.id,
         username: profile.username,
+        isActive: true,
         accessTokenEncrypted: encryptedToken,
         tokenExpiresAt,
       })
@@ -84,9 +95,10 @@ export async function GET(request: Request) {
         set: {
           clerkUserId: parsedState.clerkUserId,
           username: profile.username,
+          isActive: true,
           accessTokenEncrypted: encryptedToken,
           tokenExpiresAt,
-          updatedAt: new Date(),
+          updatedAt: now,
         },
       });
 

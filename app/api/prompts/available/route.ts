@@ -3,7 +3,8 @@ import { auth } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 
 import { db } from '@/db/client';
-import { instagramAccounts, promptAssignments, promptTemplates } from '@/db/schema';
+import { promptAssignments, promptTemplates } from '@/db/schema';
+import { getSelectedInstagramAccountForUser } from '@/lib/instagram/account-selection';
 
 export async function GET() {
   if (process.env.SKIP_CLERK === 'true') {
@@ -15,13 +16,7 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const linkedRows = await db()
-    .select({ igUserId: instagramAccounts.igUserId })
-    .from(instagramAccounts)
-    .where(eq(instagramAccounts.clerkUserId, userId))
-    .limit(1);
-
-  const linked = linkedRows[0];
+  const linked = await getSelectedInstagramAccountForUser(userId);
   if (!linked) {
     return NextResponse.json({ prompts: [] });
   }

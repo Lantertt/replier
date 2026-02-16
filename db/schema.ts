@@ -12,6 +12,7 @@ export const instagramAccounts = pgTable(
     clerkUserId: text('clerk_user_id').notNull(),
     igUserId: text('ig_user_id').notNull().unique(),
     username: text('username').notNull(),
+    isActive: boolean('is_active').default(false).notNull(),
     accessTokenEncrypted: text('access_token_encrypted').notNull(),
     tokenExpiresAt: timestamp('token_expires_at').notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),

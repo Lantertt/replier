@@ -1,10 +1,8 @@
 import { auth } from '@clerk/nextjs/server';
-import { eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 
-import { db } from '@/db/client';
-import { instagramAccounts } from '@/db/schema';
 import { decryptToken } from '@/lib/crypto';
+import { getSelectedInstagramAccountForUser } from '@/lib/instagram/account-selection';
 import { listComments } from '@/lib/instagram/client';
 
 export async function GET(_request: Request, context: { params: Promise<{ postId: string }> }) {
@@ -18,8 +16,7 @@ export async function GET(_request: Request, context: { params: Promise<{ postId
     return NextResponse.json({ error: 'postId is required' }, { status: 400 });
   }
 
-  const rows = await db().select().from(instagramAccounts).where(eq(instagramAccounts.clerkUserId, userId)).limit(1);
-  const account = rows[0];
+  const account = await getSelectedInstagramAccountForUser(userId);
 
   if (!account) {
     return NextResponse.json({ error: 'Instagram account not connected' }, { status: 404 });

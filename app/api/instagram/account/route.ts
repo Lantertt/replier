@@ -1,13 +1,11 @@
 import { auth } from '@clerk/nextjs/server';
-import { eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 
-import { db } from '@/db/client';
-import { instagramAccounts } from '@/db/schema';
+import { listInstagramAccountsForUser, resolveSelectedInstagramAccount } from '@/lib/instagram/account-selection';
 
 export async function GET() {
   if (process.env.SKIP_CLERK === 'true') {
-    return NextResponse.json({ account: null });
+    return NextResponse.json({ account: null, accounts: [] });
   }
 
   const { userId } = await auth();
@@ -15,16 +13,8 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const rows = await db()
-    .select({
-      igUserId: instagramAccounts.igUserId,
-      username: instagramAccounts.username,
-    })
-    .from(instagramAccounts)
-    .where(eq(instagramAccounts.clerkUserId, userId))
-    .limit(1);
-
-  const account = rows[0];
+  const accounts = await listInstagramAccountsForUser(userId);
+  const account = resolveSelectedInstagramAccount(accounts);
 
   return NextResponse.json({
     account: account
@@ -33,5 +23,6 @@ export async function GET() {
         username: account.username,
       }
       : null,
+    accounts,
   });
 }
